@@ -132,24 +132,24 @@ func (a *app) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	c, err := r.Cookie(flowCookie)
 	if err != nil {
-		http.Error(w, "That sign-in link has expired or was opened in a different browser. Start again from the Parley home page.", http.StatusBadRequest)
+		http.Error(w, "That sign-in link has expired or was opened in a different browser. Start again from the Scrum Pro home page.", http.StatusBadRequest)
 		return
 	}
 	blob, err := base64.RawURLEncoding.DecodeString(c.Value)
 	if err != nil {
-		http.Error(w, "That sign-in could not be read. Start again from the Parley home page.", http.StatusBadRequest)
+		http.Error(w, "That sign-in could not be read. Start again from the Scrum Pro home page.", http.StatusBadRequest)
 		return
 	}
 	var flow signinFlow
 	if err := json.Unmarshal(blob, &flow); err != nil {
-		http.Error(w, "That sign-in could not be read. Start again from the Parley home page.", http.StatusBadRequest)
+		http.Error(w, "That sign-in could not be read. Start again from the Scrum Pro home page.", http.StatusBadRequest)
 		return
 	}
 
 	// State is the CSRF check: it proves this reply belongs to the sign-in this
 	// browser started, not one an attacker started elsewhere.
 	if subtle.ConstantTimeCompare([]byte(flow.State), []byte(r.URL.Query().Get("state"))) != 1 {
-		http.Error(w, "That sign-in reply did not match the request that started it. Start again from the Parley home page.", http.StatusBadRequest)
+		http.Error(w, "That sign-in reply did not match the request that started it. Start again from the Scrum Pro home page.", http.StatusBadRequest)
 		return
 	}
 

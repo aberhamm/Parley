@@ -747,7 +747,7 @@ func TestEmbedSigninPageHeadersAndFormContract(t *testing.T) {
 		`<label for="code">The code shown in Google Meet</label>`,
 		`id="code" name="code" required autocomplete="off" autocapitalize="characters" spellcheck="false"`,
 		`<button type="submit">Continue as Ada</button>`,
-		`role="img" aria-label="Parley"`,
+		`role="img" aria-label="Scrum Pro"`,
 		`url("/embed-fonts/instrument-sans-400.woff2")`,
 		`url("/embed-fonts/jetbrains-mono-400.woff2")`,
 	} {

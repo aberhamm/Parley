@@ -24,7 +24,7 @@ import (
 // parley_secret_get.
 
 // ErrBadSettingsSchema is a manifest settings schema outside the subset.
-var ErrBadSettingsSchema = errors.New("the settings schema is not one Parley accepts")
+var ErrBadSettingsSchema = errors.New("the settings schema is not one Scrum Pro accepts")
 
 const (
 	maxSettings      = 32

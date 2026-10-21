@@ -26,12 +26,12 @@ import (
 // the upgrader echoes parley.embed and never the token.
 const embedWSProtocol = "parley.embed"
 
-// EmbedProvider is a meeting client Parley can run inside. It is a row, not an
+// EmbedProvider is a meeting client Scrum Pro can run inside. It is a row, not an
 // interface: the second provider decides what the abstraction is.
 type EmbedProvider struct {
 	Name  string `json:"name"`
 	Label string `json:"label"`
-	// FrameAncestors are the origins allowed to frame Parley's embedded pages.
+	// FrameAncestors are the origins allowed to frame Scrum Pro's embedded pages.
 	FrameAncestors []string `json:"-"`
 	// SDKScript is the provider's add-on SDK. Nothing references it unless the
 	// operator enables the provider, so an air-gapped install never does.
@@ -222,7 +222,7 @@ func (a *app) handleEmbedSession(w http.ResponseWriter, r *http.Request) {
 
 var embedSigninPage = template.Must(template.New("signin").Parse(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in to {{.Label}} — Parley</title>
+<title>Sign in to {{.Label}} — Scrum Pro</title>
 <style>
 @font-face {
   font-family: "Instrument Sans";
@@ -358,11 +358,11 @@ button:focus-visible {
 </style>
 </head>
 <body><main>
-<div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="40" height="40" role="img" aria-label="Parley"><rect width="256" height="256" rx="56" fill="#1D4E6E"/><rect x="60" y="48" width="96" height="136" rx="20" fill="#F7F6F2" transform="rotate(-9 108 116)"/><rect x="100" y="64" width="96" height="136" rx="20" fill="#F7F6F2" stroke="#1D4E6E" stroke-width="9.6" transform="rotate(9 148 132)"/><g transform="rotate(9 148 132)" fill="none" stroke="#1D4E6E" stroke-width="14" stroke-linecap="round"><circle cx="150" cy="114" r="13"/><circle cx="150" cy="144" r="17"/></g></svg></div>
+<div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="40" height="40" role="img" aria-label="Scrum Pro"><rect width="256" height="256" rx="56" fill="#1D4E6E"/><rect x="60" y="48" width="96" height="136" rx="20" fill="#F7F6F2" transform="rotate(-9 108 116)"/><rect x="100" y="64" width="96" height="136" rx="20" fill="#F7F6F2" stroke="#1D4E6E" stroke-width="9.6" transform="rotate(9 148 132)"/><g transform="rotate(9 148 132)" fill="none" stroke="#1D4E6E" stroke-width="14" stroke-linecap="round"><circle cx="150" cy="114" r="13"/><circle cx="150" cy="144" r="17"/></g></svg></div>
 <h1>{{.Title}}</h1>
 {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
 <p>{{.Message}}</p>
-{{if .SigninURL}}<p><a href="{{.SigninURL}}">Sign in to Parley</a>, then come back to this page.</p>{{end}}
+{{if .SigninURL}}<p><a href="{{.SigninURL}}">Sign in to Scrum Pro</a>, then come back to this page.</p>{{end}}
 {{if .Challenge}}<form method="post" action="/embed/signin">
 <input type="hidden" name="c" value="{{.Challenge}}">
 <label for="code">The code shown in {{.Label}}</label>
@@ -415,8 +415,8 @@ func (a *app) handleEmbedSigninPage(w http.ResponseWriter, r *http.Request) {
 	v := embedSigninView{Label: provider.Label}
 	p, ok := PrincipalFrom(r.Context())
 	if !ok || p.IsLinkGuest() || p.Embedded {
-		v.Title = "Sign in to Parley"
-		v.Message = "You need to be signed in to Parley in this browser to continue."
+		v.Title = "Sign in to Scrum Pro"
+		v.Message = "You need to be signed in to Scrum Pro in this browser to continue."
 		v.SigninURL = "/"
 		if a.authMode == ModeOIDC {
 			v.SigninURL = "/auth/login?next=" + url.QueryEscape("/embed/signin?c="+raw)
@@ -424,8 +424,8 @@ func (a *app) handleEmbedSigninPage(w http.ResponseWriter, r *http.Request) {
 		renderEmbedSignin(w, http.StatusOK, v)
 		return
 	}
-	v.Title = "Sign in to Parley in " + provider.Label
-	v.Message = "Type the code Parley shows in " + provider.Label + ". If you did not just press Sign in there, close this page."
+	v.Title = "Sign in to Scrum Pro in " + provider.Label
+	v.Message = "Type the code Scrum Pro shows in " + provider.Label + ". If you did not just press Sign in there, close this page."
 	v.Challenge = raw
 	v.Name = p.Display
 	renderEmbedSignin(w, http.StatusOK, v)
@@ -456,7 +456,7 @@ func (a *app) handleEmbedSigninBind(w http.ResponseWriter, r *http.Request) {
 	p, ok := PrincipalFrom(r.Context())
 	if !ok || p.IsLinkGuest() || p.Embedded {
 		renderEmbedSignin(w, http.StatusUnauthorized, embedSigninView{
-			Title:   "Sign in to Parley first",
+			Title:   "Sign in to Scrum Pro first",
 			Message: "A guest link or a meeting-client session cannot sign a meeting client in.",
 		})
 		return
@@ -482,9 +482,9 @@ func (a *app) handleEmbedSigninBind(w http.ResponseWriter, r *http.Request) {
 	if subtle.ConstantTimeCompare([]byte(typed), []byte(normalizeDisplayCode(pending.DisplayCode))) != 1 {
 		logSecEvent(r, secEvent{Event: "embed.bind", Outcome: "wrong_code"})
 		renderEmbedSignin(w, http.StatusForbidden, embedSigninView{
-			Title:     "Sign in to Parley in " + provider.Label,
+			Title:     "Sign in to Scrum Pro in " + provider.Label,
 			Label:     provider.Label,
-			Error:     "That code does not match. Check the code Parley shows in " + provider.Label + " and type it again.",
+			Error:     "That code does not match. Check the code Scrum Pro shows in " + provider.Label + " and type it again.",
 			Message:   "If you did not just press Sign in there, close this page.",
 			Challenge: raw,
 			Name:      p.Display,
@@ -508,7 +508,7 @@ func (a *app) handleEmbedSigninBind(w http.ResponseWriter, r *http.Request) {
 	logSecEvent(r, secEvent{Event: "embed.bind", Target: h.Provider})
 	renderEmbedSignin(w, http.StatusOK, embedSigninView{
 		Title: "You're signed in", Label: provider.Label,
-		Message: "Go back to " + cmp.Or(provider.Label, "your meeting") + " — Parley will open there in a moment. You can close this tab.",
+		Message: "Go back to " + cmp.Or(provider.Label, "your meeting") + " — Scrum Pro will open there in a moment. You can close this tab.",
 	})
 }
 
@@ -590,7 +590,7 @@ func matchedPattern(routes chi.Routes, r *http.Request) string {
 
 // embeddedRefusalMessage is what gateEmbedded answers a route off the embedded
 // allow-list with.
-const embeddedRefusalMessage = "a meeting-client session cannot do that — open Parley in a browser tab"
+const embeddedRefusalMessage = "a meeting-client session cannot do that — open Scrum Pro in a browser tab"
 
 // embedSurfaces are the documents a meeting client frames: a side panel and a
 // main stage. They are the SPA shell, served from their own route group.

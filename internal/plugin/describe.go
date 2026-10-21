@@ -70,7 +70,7 @@ func Describe(g Grant) DescribedGrant {
 			out.Permits = fmt.Sprintf("Can store and read back the secret %q, encrypted on this server. Combined with any outbound access below, it can send it.", g.Scope)
 		}
 	case CapabilityLog:
-		out.Permits = "Can write lines into this server's log, where they sit alongside Parley's own."
+		out.Permits = "Can write lines into this server's log, where they sit alongside Scrum Pro's own."
 	case CapabilitySessionRead:
 		if g.Scope == "" {
 			out.Permits = "Can read the live state of every room running a ceremony this plugin itself provides, in any space in this org: who is seated, which of them is looking at its panel, and whatever that ceremony records. It cannot read a planning poker or standup room, or any other plugin's rooms."
@@ -86,21 +86,21 @@ func Describe(g Grant) DescribedGrant {
 	case CapabilitySessionAct:
 		// Coarse on purpose: there is no per-action grant, and the scope is not
 		// consulted (the bridge checks the capability name alone).
-		out.Permits = "Can press any button the person viewing it could press in the room its panel is shown in — reveal a round, advance a story, or any other action that room offers, including the facilitator's controls when that person is the facilitator — at a moment of the plugin's choosing, without a further click. Parley re-checks every action as that person, so it can never do more than they could."
+		out.Permits = "Can press any button the person viewing it could press in the room its panel is shown in — reveal a round, advance a story, or any other action that room offers, including the facilitator's controls when that person is the facilitator — at a moment of the plugin's choosing, without a further click. Scrum Pro re-checks every action as that person, so it can never do more than they could."
 	case CapabilityJobs:
 		out.Permits = "Can schedule its own work to run later on this server, outside any request a person made."
 	case CapabilityEmit:
-		out.Permits = "Can publish events of its own, which other plugins receive as though Parley had raised them."
+		out.Permits = "Can publish events of its own, which other plugins receive as though Scrum Pro had raised them."
 	case CapabilityEvents:
 		if g.Scope == "" {
-			out.Permits = "Is sent a copy of every event Parley raises, payload included."
+			out.Permits = "Is sent a copy of every event Scrum Pro raises, payload included."
 		} else {
 			out.Permits = fmt.Sprintf("Is sent a copy of every %q event, payload included.", g.Scope)
 		}
 	default:
 		// Unknown is not harmless. An operator must be told the host cannot
 		// explain what they are about to agree to.
-		out.Permits = fmt.Sprintf("Parley does not recognize the capability %q and cannot say what it permits. Do not grant it.", g.Capability)
+		out.Permits = fmt.Sprintf("Scrum Pro does not recognize the capability %q and cannot say what it permits. Do not grant it.", g.Capability)
 	}
 	return out
 }
