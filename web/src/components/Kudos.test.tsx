@@ -111,7 +111,7 @@ describe("Kudos wall", () => {
     expect(screen.getByTestId("kudos-empty").textContent).toContain("No kudos yet");
   });
 
-  it("renders a kudo whose sender and recipient have both left the space", async () => {
+  it("renders a kudo whose sender and recipient have both left the workspace", async () => {
     kudos = [
       {
         id: "k1",
@@ -540,7 +540,7 @@ describe("Kudos letter", () => {
   // The landing page's "a thank-you is waiting" reads ["my-spaces"]. Putting
   // the last letter away has to clear it there, or going back paints a cue
   // for a letter already read.
-  it("clears this space's landing cue when the last letter is put away, and no other org's", async () => {
+  it("clears this workspace's landing cue when the last letter is put away, and no other org's", async () => {
     kudos = [letter("k1")];
     const { queryClient } = mount();
     const before = [
@@ -554,7 +554,7 @@ describe("Kudos letter", () => {
     expect(after?.map((m) => m.kudoWaiting)).toEqual([false, true]);
   });
 
-  it("keeps this space's landing cue while another letter is still waiting", async () => {
+  it("keeps this workspace's landing cue while another letter is still waiting", async () => {
     kudos = [letter("k1"), letter("k2")];
     const { queryClient } = mount();
     queryClient.setQueryData(["my-spaces"], [

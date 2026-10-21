@@ -37,7 +37,7 @@ beforeEach(() => {
   calls.length = 0;
 });
 
-describe("Space settings member management", () => {
+describe("Workspace settings member management", () => {
   it("offers a plain member no management buttons at all", async () => {
     view = {
       ...base,
@@ -50,7 +50,7 @@ describe("Space settings member management", () => {
 
     // Roles are still readable — the sidebar roster names them — but nothing
     // on this page is actionable.
-    expect(await screen.findByText(/Only an owner can manage this space/)).toBeTruthy();
+    expect(await screen.findByText(/Only an owner can manage this workspace/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Make owner/ })).toBe(null);
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBe(null);
   });
@@ -77,7 +77,7 @@ describe("Space settings member management", () => {
     expect(calls).toContainEqual(["DELETE", "/api/orgs/acme/spaces/platform-team/members/bob", undefined]);
   });
 
-  it("does not offer to strand the space without an owner", async () => {
+  it("does not offer to strand the workspace without an owner", async () => {
     view = {
       ...base,
       members: [

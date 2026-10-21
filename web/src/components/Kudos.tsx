@@ -794,7 +794,7 @@ export function Kudos({
 
       {candidates.length === 0 ? (
         <p className="mt-4 text-[13px] text-ink-faint text-pretty">
-          Nobody else is in this space yet — invite someone and you will have somebody to thank.
+          Nobody else is in this workspace yet — invite someone and you will have somebody to thank.
         </p>
       ) : !formOpen ? (
         <button

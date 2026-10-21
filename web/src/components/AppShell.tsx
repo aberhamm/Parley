@@ -24,7 +24,7 @@ export { Logo, ThemeToggle };
 const SIDEBAR_SESSIONS = 8;
 
 
-const RELEASES = "https://github.com/lets-parley/parley/releases";
+
 
 /**
  * What this build calls itself. Asked once — a version cannot change without a
@@ -39,20 +39,10 @@ export function BuildStamp() {
     retry: false,
   });
   if (!data?.version) return null;
-  // An unstamped build has no tag to link to, so it gets the releases index.
-  // Tags are `v`-prefixed; /version reports the bare number, so re-add it.
-  const href =
-    data.version === "dev" ? RELEASES : `${RELEASES}/tag/v${data.version.replace(/^v/, "")}`;
   return (
-    <a
-      href={href}
-      target="_blank"
-      aria-label={`Parley ${data.version} release notes`}
-      rel="noreferrer"
-      className="mt-auto border-t border-line pt-3 font-mono text-[11px] text-ink-soft hover:text-ink"
-    >
-      Parley {data.version}
-    </a>
+    <p className="mt-auto border-t border-line pt-3 font-mono text-[11px] text-ink-soft">
+      Scrum Pro {data.version}
+    </p>
   );
 }
 
@@ -367,7 +357,7 @@ export function AppShell({
         href="#main"
         className="sr-only rounded-full bg-accent px-4 py-2 text-[13px] font-bold text-accent-ink focus:not-sr-only focus:absolute focus:left-3 focus:top-[max(0.75rem,var(--safe-top))] focus:z-50"
       >
-        Skip to the table
+        Skip to main content
       </a>
       <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-3 border-b border-line bg-surface pt-[var(--safe-top)] pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] sm:gap-4 sm:pl-[max(1.25rem,var(--safe-left))] sm:pr-[max(1.25rem,var(--safe-right))] md:flex-nowrap">
         {!guest && (
@@ -387,7 +377,7 @@ export function AppShell({
         {/* The room is the loudest thing in the header, because on a shared
             screen the header's job is to say which round the room is in — not
             whose software it is. The wordmark keeps the way home as a mark. */}
-        <Link to="/" aria-label="Parley home" className="flex shrink-0 items-center">
+        <Link to="/" aria-label="Scrum Pro home" className="flex shrink-0 items-center">
           <Logo size={44} />
         </Link>
 
@@ -397,6 +387,7 @@ export function AppShell({
           <h1 className="truncate text-[17px] font-bold tracking-tight sm:text-[19px]">
             {title ?? spaceName}
           </h1>
+          {!title && <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">Workspace</span>}
           {title && !guest && (
             <Link
               to={spacePath(orgSlug, spaceSlug)}
@@ -501,7 +492,7 @@ export function AppShell({
       <div className="flex flex-1 items-stretch">
         {sideOpen && wide && !guest && (
           <nav
-            aria-label="Space"
+            aria-label="Workspace"
             className="flex w-[310px] shrink-0 flex-col gap-6 border-r border-line bg-surface p-4"
           >
             {navBody}
@@ -513,7 +504,7 @@ export function AppShell({
 
       {sideOpen && !wide && !guest && (
         <Modal title={spaceName} onClose={() => setSideOpen(false)} width="20rem">
-          <nav aria-label="Space" className="mt-4 flex flex-col gap-6">
+          <nav aria-label="Workspace" className="mt-4 flex flex-col gap-6">
             {navBody}
           </nav>
         </Modal>

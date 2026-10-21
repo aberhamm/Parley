@@ -276,7 +276,7 @@ describe("navigation", () => {
   it("offers a way back home, so the catalog is not a dead end", async () => {
     renderApp(<CatalogPage />);
     await screen.findByRole("heading", { name: "Plugin catalog" });
-    expect(screen.getByRole("link", { name: "Parley" }).getAttribute("href")).toBe("/");
-    expect(screen.getByRole("link", { name: /Back to your spaces/ }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Scrum Pro" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: /Back to your workspaces/ }).getAttribute("href")).toBe("/");
   });
 });

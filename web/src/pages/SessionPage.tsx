@@ -110,7 +110,7 @@ export function SessionPage() {
   if (left) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="font-display text-2xl">No seat at this table</p>
+        <p className="font-display text-2xl">No access to this session</p>
         <p role="status" className="max-w-sm text-sm text-ink-soft text-pretty">
           You've left this room. The guest link is spent on this browser — ask
           whoever shared it for a new one if you need to come back.
@@ -150,10 +150,10 @@ export function SessionPage() {
   if (!session.data || (!guest && !session.data.orgSlug) || !identity) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="font-display text-2xl">No seat at this table</p>
+        <p className="font-display text-2xl">No access to this session</p>
         <p className="max-w-sm text-sm text-ink-soft text-pretty">
           This session doesn't exist, or you're not a member of its space. Ask a
-          teammate for the space link — it seats you with just a display name.
+          teammate for the workspace link — it seats you with just a display name.
         </p>
       </div>
     );
@@ -291,7 +291,7 @@ export function SessionPage() {
           // Falling through to a room here would point one kind's controls at
           // another kind's state, so an unknown kind gets no room at all.
           <p className="p-8 text-center text-ink-soft text-pretty">
-            This Parley doesn't know how to open a “{env.kind}” session. It may
+            This Scrum Pro doesn't know how to open a “{env.kind}” session. It may
             need a newer version.
           </p>
         )}

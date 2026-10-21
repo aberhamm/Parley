@@ -243,7 +243,7 @@ describe("SessionPage wiring", () => {
   // The sidebar's space lookup is org-scoped now, and the org comes from the
   // socket envelope. Pin the URL it is actually asked for: a slug on its own
   // addresses nothing.
-  it("looks the space up under the org the envelope names", async () => {
+  it("looks the workspace up under the org the envelope names", async () => {
     renderApp(<SessionPage />);
     await waitFor(() =>
       expect(
@@ -261,7 +261,7 @@ describe("SessionPage wiring", () => {
   it("says so when a member envelope carries no org", async () => {
     mockOrgSlug = "";
     renderApp(<SessionPage />);
-    expect(await screen.findByText(/no seat at this table/i)).toBeTruthy();
+    expect(await screen.findByText(/no access to this session/i)).toBeTruthy();
   });
 
   // The header used to be handed every member of the space, so somebody who
@@ -305,7 +305,7 @@ describe("SessionPage wiring", () => {
   // another one must not fall back to "not in a session right now" either —
   // the space's own roster already knows where they are, and that fallback
   // is exactly what the fix restores for a name not covered by presence.
-  it("says a member seated in another session is there, from the space roster's own at", async () => {
+  it("says a member seated in another session is there, from the workspace roster's own at", async () => {
     mockData = {
       ...envelope,
       participants: [
@@ -495,12 +495,12 @@ describe.each([
     renderApp(routed, { route: "/session/sess-1" });
     expect((await screen.findByTestId("link-guest-banner")).textContent).toMatch(/guest link/i);
     // The redacted envelope must not be mistaken for a failed session read.
-    expect(screen.queryByText(/no seat at this table/i)).toBe(null);
+    expect(screen.queryByText(/no access to this session/i)).toBe(null);
   });
 
   // Split into one assertion per control (rather than one packed it()) so a
   // regression report names which control broke instead of just the first.
-  it("has no space breadcrumb, or other way out into the space", async () => {
+  it("has no space breadcrumb, or other way out into the workspace", async () => {
     renderApp(routed, { route: "/session/sess-1" });
     await screen.findByTestId("link-guest-banner");
     expect(document.querySelector('a[href="/o/acme/s/platform-team"]')).toBe(null);
@@ -551,7 +551,7 @@ describe.each([
     );
     // A dead link, not a seat — and the cached identity goes with it, so a
     // reload cannot paint the room back from session storage.
-    expect(await screen.findByText(/no seat at this table/i)).toBeTruthy();
+    expect(await screen.findByText(/no access to this session/i)).toBeTruthy();
     expect(screen.queryByTestId("link-guest-banner")).toBe(null);
     expect(sessionStorage.getItem("parley.link-guest")).toBe(null);
   });
@@ -574,7 +574,7 @@ describe.each([
     expect(localStorage.getItem("parley:last-name")).toBe("Priya Raman");
   });
 
-  it("never asks the space route it is refused", async () => {
+  it("never asks the workspace route it is refused", async () => {
     // The mock accumulates across this file, so only this render's calls count.
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/session/sess-1" });
@@ -710,12 +710,12 @@ describe("SessionPage for a link guest whose storage was cleared", () => {
     );
     // A dead link, not a seat — and the cached identity goes with it, so a
     // reload cannot paint the room back from session storage.
-    expect(await screen.findByText(/no seat at this table/i)).toBeTruthy();
+    expect(await screen.findByText(/no access to this session/i)).toBeTruthy();
     expect(screen.queryByTestId("link-guest-banner")).toBe(null);
     expect(sessionStorage.getItem("parley.link-guest")).toBe(null);
   });
 
-  it("never asks the space route it is refused", async () => {
+  it("never asks the workspace route it is refused", async () => {
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/session/sess-1" });
     await screen.findByTestId("link-guest-banner");
@@ -814,7 +814,7 @@ describe("SessionPage transient session refetch failure", () => {
     const { rerender } = renderApp(routed, { route: "/session/sess-1" });
 
     expect(await screen.findByText("Daily")).toBeTruthy();
-    expect(screen.queryByText(/no seat at this table/i)).toBe(null);
+    expect(screen.queryByText(/no access to this session/i)).toBe(null);
 
     const yesterday = screen.getAllByRole("textbox")[0] as HTMLTextAreaElement;
     fireEvent.change(yesterday, { target: { value: "half-typed blocker notes" } });
@@ -824,7 +824,7 @@ describe("SessionPage transient session refetch failure", () => {
     rerender(routed);
 
     expect(screen.getByText("Daily")).toBeTruthy();
-    expect(screen.queryByText(/no seat at this table/i)).toBe(null);
+    expect(screen.queryByText(/no access to this session/i)).toBe(null);
     const yesterdayAfter = screen.getAllByRole("textbox")[0] as HTMLTextAreaElement;
     expect(yesterdayAfter.value).toBe("half-typed blocker notes");
   });
@@ -833,6 +833,6 @@ describe("SessionPage transient session refetch failure", () => {
     mockSessionError = true;
     mockSessionHasData = false;
     renderApp(routed, { route: "/session/sess-1" });
-    expect(await screen.findByText(/no seat at this table/i)).toBeTruthy();
+    expect(await screen.findByText(/no access to this session/i)).toBeTruthy();
   });
 });

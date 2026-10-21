@@ -177,15 +177,15 @@ function whoIsHere(session: SessionSummary, members: Person[]): string {
     .map((m) => safeDisplayName(m.name).split(/\s+/)[0]);
   const others = Math.max(0, session.here - named.length);
   if (named.length === 0) {
-    if (others === 0) return "Nobody at the table yet";
-    return `${others} at the table`;
+    if (others === 0) return "Nobody in the session yet";
+    return `${others} in session`;
   }
   const shown = named.slice(0, 2);
   const rest = named.length - shown.length + others;
   if (rest === 0) {
-    return (shown.length === 2 ? `${shown[0]} and ${shown[1]}` : shown[0]) + " at the table";
+    return (shown.length === 2 ? `${shown[0]} and ${shown[1]}` : shown[0]) + " in session";
   }
-  return `${shown.join(", ")} and ${rest} other${rest === 1 ? "" : "s"} at the table`;
+  return `${shown.join(", ")} and ${rest} other${rest === 1 ? "" : "s"} in session`;
 }
 
 /**
@@ -291,7 +291,7 @@ function ReturnTable({ space, orgName }: { space: Membership; orgName: string | 
         {space.name}
       </h1>
       <p className="mt-1.5 text-sm text-ink-soft">
-        The table you sat at last{orgName ? `, in ${orgName}` : ""}.
+        Your most recent workspace{orgName ? `, in ${orgName}` : ""}.
       </p>
       {space.kudoWaiting && <KudoWaitingCue className="mt-3" lead={false} />}
 
@@ -330,7 +330,7 @@ function ReturnTable({ space, orgName }: { space: Membership; orgName: string | 
       {detail.isSuccess && open.length === 0 && (
         <p className="mt-5 flex items-center gap-3 text-sm text-ink-soft">
           <SeatedCards here={0} />
-          No round open. The table is quiet until someone deals.
+          No active sessions. Open this workspace to start planning poker or a standup.
         </p>
       )}
 
@@ -447,7 +447,7 @@ export function Landing() {
         console.error(e);
         qc.invalidateQueries({ queryKey: ["my-spaces"] });
         setBusy(false);
-        setError("The space was created, but we couldn't open it. It's in your list below.");
+        setError("The workspace was created, but we couldn't open it. It's in your list below.");
         return;
       }
       creating.current = false;
@@ -568,12 +568,12 @@ export function Landing() {
                 " font-display font-bold tracking-[-0.02em]"
               }
             >
-              Parley
+              Scrum Pro
             </span>
           </div>
           {!settling && stranger && !guestRoomId && (
             <h1 className="max-w-[18ch] text-balance text-center font-display text-[clamp(2rem,6vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.02em]">
-              Name a table. Share the link. Start the round.
+              Your team’s workspace. Every session in one place.
             </h1>
           )}
         </div>
@@ -584,9 +584,9 @@ export function Landing() {
         {guestRoomId && (
           <p className="max-w-md text-ink-soft text-pretty">
             You're here as a guest, from a link — this page is for accounts, not
-            your table.{" "}
+            your session.{" "}
             <Link to={`/session/${guestRoomId}`} className="font-bold underline">
-              Back to your room
+              Back to your session
             </Link>
           </p>
         )}
@@ -595,9 +595,9 @@ export function Landing() {
             and their list should not sit below an advertisement for it. */}
         {!settling && stranger && !guestRoomId && (
           <p className="max-w-[68ch] text-pretty text-ink-soft">
-            Planning poker, daily standups and kudos for your team, at your table. A space
-            is a room your team keeps — name one, share the link, start a round.
-            Self-hosted: one binary, your database, no seat counts.
+            Create a workspace for your team, then start planning poker to estimate
+            stories or a standup to share daily updates. Your workspace keeps your
+            sessions, members, and history together.
           </p>
         )}
 
@@ -649,7 +649,7 @@ export function Landing() {
           >
             <h2 className="font-display text-xl">You're signed in, but not in an org yet</h2>
             <p className="mt-2 text-sm text-ink-soft text-pretty">
-              Spaces live inside an org, and your account isn't in one. Ask an
+              Workspaces live inside an org, and your account isn't in one. Ask an
               administrator to add you — they map your identity provider's groups
               onto the orgs on this instance.
             </p>
@@ -663,7 +663,7 @@ export function Landing() {
           <>
             {mine.isError && (
               <p className="flex items-center gap-3 text-sm text-ink-soft">
-                Couldn't load your spaces.
+                Couldn't load your workspaces.
                 <button type="button" className={buttonQuiet} onClick={() => mine.refetch()}>
                   Try again
                 </button>
@@ -720,7 +720,7 @@ export function Landing() {
                   >
                     <div className="min-w-0 flex-1 sm:min-w-48">
                       <label htmlFor={fieldId} className={"mb-2 block " + formLabel}>
-                        {known ? "New space" : "Name your space"}
+                        {known ? "New workspace" : "Name your workspace"}
                       </label>
                       <input
                         id={fieldId}
@@ -762,7 +762,7 @@ export function Landing() {
                       className={buttonPrimary + " shrink-0"}
                       disabled={!name.trim() || busy}
                     >
-                      {busy ? "Opening…" : known ? "Create a space" : "Open a space"}
+                      {busy ? "Creating…" : "Create workspace"}
                     </button>
                   </form>
                 )}
@@ -796,6 +796,10 @@ export function Landing() {
               <div className={wide ? "lg:col-start-2 lg:row-span-2 lg:row-start-1" : "contents"}>
                 {!settling && (known || orgs.length > 0) && (
                   <div className="flex w-full flex-col gap-4">
+                    <div>
+                      <h2 className="text-xl font-bold tracking-tight">Your workspaces</h2>
+                      <p className="mt-1 text-sm text-ink-soft">Choose a team workspace to join or start a session.</p>
+                    </div>
                     {(multiOrg || findable) && (
                       <div className="flex flex-wrap items-center gap-3">
                         {multiOrg && (
@@ -805,7 +809,7 @@ export function Landing() {
                              pointer. */
                           <div
                             role="group"
-                            aria-label="Show spaces from"
+                            aria-label="Show workspaces from"
                             className="flex flex-wrap items-center gap-2"
                           >
                             {[{ slug: null as string | null, name: "All orgs" }, ...orgs].map((o) => {
@@ -832,7 +836,7 @@ export function Landing() {
                         {findable && (
                           <div className="min-w-48 flex-1">
                             <label htmlFor={findId} className="sr-only">
-                              Find a space
+                              Find a workspace
                             </label>
                             <input
                               id={findId}
@@ -855,7 +859,7 @@ export function Landing() {
                                   navigate(spacePath(first.orgSlug, first.slug));
                                 }
                               }}
-                              placeholder="Find a space"
+                              placeholder="Find a workspace"
                             />
                           </div>
                         )}
@@ -925,7 +929,7 @@ export function Landing() {
                             </div>
                           )}
                           {rows.length > 0 ? (
-                            <ul aria-label={`Your spaces in ${title}`} className="flex flex-col gap-0.5 p-2">
+                            <ul aria-label={`Your workspaces in ${title}`} className="flex flex-col gap-0.5 p-2">
                               {rows.map((sp) => (
                                 <li key={sp.orgSlug + "/" + sp.slug}>
                                   <Link
@@ -950,7 +954,7 @@ export function Landing() {
                                         <SeatedCards here={(sp.here ?? 0) > 0 ? 1 : 0} />
                                         <span className="sr-only">
                                           , round open
-                                          {(sp.here ?? 0) > 0 ? `, ${sp.here} at the table` : ""}
+                                          {(sp.here ?? 0) > 0 ? `, ${sp.here} in session` : ""}
                                         </span>
                                       </span>
                                     )}
@@ -971,7 +975,7 @@ export function Landing() {
                             // repeating "none here" in every panel would claim
                             // an answer the page never got.
                             !mine.isError && <p className="px-5 py-4 text-sm text-ink-soft">
-                              No tables of yours here yet. Browse to find your team's, or name one below.
+                              No workspaces of yours here yet. Browse to find your team's, or name one below.
                             </p>
                           )}
                         </section>
@@ -982,7 +986,7 @@ export function Landing() {
                         announced at all (WCAG 4.1.3). empty:sr-only takes the
                         silent one out of the flow without leaving the tree. */}
                     <p role="status" className="px-1 text-sm text-ink-soft empty:sr-only">
-                      {needle && shown.length === 0 ? `No space of yours matches “${find.trim()}”.` : ""}
+                      {needle && shown.length === 0 ? `No workspace of yours matches “${find.trim()}”.` : ""}
                     </p>
                   </div>
                 )}
@@ -1015,20 +1019,8 @@ export function Landing() {
         )}
       </main>
 
-      {/* A stranger had no way to learn more and no exit. These are the things
-          that exist and are checkable — docs, source, license, releases.
-          Nothing here claims adoption, customers or benchmarks, because none
-          exist. Outside main, so it is the page's contentinfo landmark. */}
-      <footer className="flex flex-wrap items-center justify-center gap-x-5 px-4 pb-6 pt-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">
-        <a className="inline-block py-2 hover:text-ink" href="https://www.letsparley.io">
-          Documentation
-        </a>
-        <a className="inline-block py-2 hover:text-ink" href="https://github.com/lets-parley/parley">
-          Source · MIT
-        </a>
-        <a className="inline-block py-2 hover:text-ink" href="https://github.com/lets-parley/parley/releases">
-          Releases
-        </a>
+      <footer className="px-4 pb-6 pt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-ink-faint">
+        Scrum Pro · Planning poker &amp; standups
       </footer>
     </div>
   );

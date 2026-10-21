@@ -137,7 +137,7 @@ export function FacilitatorClaim({
         </p>
         <p className="mt-0.5 text-[13px] text-ink-soft">
           {claimLeft && claimLeft > 0
-            ? `If they aren't back in ${claimLeft}s, anyone at the table can take over.`
+            ? `If they aren't back in ${claimLeft}s, anyone in the session can take over.`
             : "The grace period is over — anyone can take over now."}
         </p>
       </div>

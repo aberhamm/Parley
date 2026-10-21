@@ -28,7 +28,7 @@ export function ConnectionBanner({
     >
       <span className={"h-2 w-2 shrink-0 rounded-full " + (stale ? "bg-stop" : "bg-accent")} />
       {removed
-        ? "You no longer have access to this space — an owner removed you. Ask them for an invite to rejoin."
+        ? "You no longer have access to this workspace — an owner removed you. Ask them for an invite to rejoin."
         : stale
           ? "Connection lost — showing the table as it last stood. Votes may be out of date."
           : "Reconnecting — your vote is safe."}
@@ -39,7 +39,7 @@ export function ConnectionBanner({
           href="/"
           className={`${TOUCH_HIT} inline-flex items-center rounded-full border border-line bg-surface px-4 text-xs font-bold hover:bg-surface-hi`}
         >
-          Back to Parley
+          Back to Scrum Pro
         </a>
       )}
       {stale && !removed && onRetry && (

@@ -57,7 +57,7 @@ export function LinkPage() {
   if (!token) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="font-display text-2xl">No seat at this table</p>
+        <p className="font-display text-2xl">No access to this session</p>
         <p role="alert" className="max-w-sm text-sm text-ink-soft text-pretty">
           {DEAD_LINK}
         </p>
@@ -70,7 +70,7 @@ export function LinkPage() {
       <form onSubmit={submit} className="flex flex-col gap-3">
         <p className="text-sm text-ink-soft text-pretty">
           You've been invited to one room by a guest link. It is the name your
-          team sees at the table — no account, no email, and your seat ends when
+          team sees in the session — no account, no email, and your seat ends when
           you close this tab.
         </p>
         <div>

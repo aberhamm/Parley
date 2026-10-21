@@ -63,7 +63,7 @@ export function DecksPanel({
     <section className="mt-6 rounded-card border border-line bg-surface px-5 py-4">
       <h2 className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">Decks</h2>
       <p className="mt-1 text-[13px] text-ink-soft text-pretty">
-        Card sets this space can start a session with, alongside the four
+        Card sets this workspace can start a session with, alongside the four
         built-in decks.
       </p>
 

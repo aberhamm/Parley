@@ -2370,7 +2370,7 @@ describe("StandupRoom async follow-through and mentions", () => {
     expect(f.mock.calls.some((c) => String(c[0]) === "/api/sessions/sess-1/mentions")).toBe(true);
   });
 
-  it("asks a space member for help from a labeled picker", async () => {
+  it("asks a workspace member for help from a labeled picker", async () => {
     const f = serveRoom();
     const user = userEvent.setup();
     renderApp(<StandupRoom env={asyncRoom()} me={me} />);

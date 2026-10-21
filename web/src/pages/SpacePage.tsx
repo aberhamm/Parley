@@ -248,7 +248,7 @@ export function SpacePage() {
   const authMode = useAuthMode();
   const say = useToast();
   const [needName, setNeedName] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [picked, setKind] = useState("");
@@ -380,7 +380,7 @@ export function SpacePage() {
   }
 
   if (space.isLoading) {
-    return <p className="p-8 text-center text-ink-faint">Finding the table…</p>;
+    return <p className="p-8 text-center text-ink-faint">Loading workspace…</p>;
   }
   // Only the *first* read failing means there is no table. With a poll
   // running, a background refetch failure sets isError while the cached space
@@ -389,7 +389,7 @@ export function SpacePage() {
   if (!space.data) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="font-display text-2xl">No table under that name</p>
+        <p className="font-display text-2xl">Workspace not found</p>
         <p className="text-sm text-ink-soft">Check the link with your team.</p>
       </div>
     );
@@ -519,15 +519,26 @@ export function SpacePage() {
         <div className="min-w-0">
         <InviteStrip org={org} slug={sp.slug} passcode={sp.passcode ?? ""} />
 
-        <div className="mb-5 flex items-center justify-between gap-4">
+        <div className="mb-6 rounded-panel border border-line bg-surface p-5">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-accent">Workspace</p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight">{sp.name}</h2>
+          <p className="mt-2 text-sm text-ink-soft">Your team’s sessions, members, and history in one place.</p>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <h2 ref={sessionsHeading} tabIndex={-1} className="text-[22px] font-bold tracking-tight">
             Sessions
           </h2>
-          {offered.length > 0 && (
-            <button className={buttonPrimary} onClick={() => setCreating(true)}>
-              New session
-            </button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {offered.filter((k) => k.id === "poker" || k.id === "standup").map((k) => (
+              <button key={k.id} className={k.id === "poker" ? buttonPrimary : buttonQuiet} onClick={() => setCreating(k.id)}>
+                {k.id === "poker" ? "New Planning Poker Session" : "New Standup Session"}
+              </button>
+            ))}
+            {offered.some((k) => k.id !== "poker" && k.id !== "standup") && (
+              <button className={buttonQuiet} onClick={() => setCreating("other")}>Other session types</button>
+            )}
+          </div>
         </div>
 
         {all.length > 0 && (
@@ -622,8 +633,8 @@ export function SpacePage() {
 
         {all.length === 0 ? (
           <EmptyTable
-            heading="Nothing on the table yet"
-            body={`Start a session and everyone in ${sp.name} can pull up a chair.`}
+            heading="No sessions yet"
+            body={`Start a session and everyone in ${sp.name} can join. Choose planning poker to estimate stories or standup to share updates.`}
           />
         ) : filtered.length === 0 ? (
           <p className="px-2 py-9 text-center text-sm text-ink-soft">
@@ -633,7 +644,7 @@ export function SpacePage() {
         ) : (
           <div className="flex flex-col gap-5">
             {live.length > 0 && (
-              <ul aria-label="On the table now" className="flex flex-col gap-3">
+              <ul aria-label="Live sessions" className="flex flex-col gap-3">
                 {live.map((s) => (
                   <LiveCard
                     key={s.id}
@@ -648,7 +659,7 @@ export function SpacePage() {
 
             {open.length > 0 && (
               <ul
-                aria-label="Open rooms"
+                aria-label="Open sessions"
                 className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface"
               >
                 {open.map((s) => (
@@ -738,8 +749,8 @@ export function SpacePage() {
         <NewSessionModal
           org={org}
           slug={sp.slug}
-          kinds={offered}
-          onClose={() => setCreating(false)}
+          kinds={creating === "other" ? offered.filter((k) => k.id !== "poker" && k.id !== "standup") : offered.filter((k) => k.id === creating)}
+          onClose={() => setCreating(null)}
         />
       )}
     </AppShell>
@@ -791,7 +802,7 @@ function LiveCard({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-go opacity-60 motion-reduce:animate-none" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-go" />
           </span>
-          On the table now
+          Live sessions
         </p>
         <p className="mt-1 truncate text-[19px] font-bold tracking-tight">{s.title}</p>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
@@ -944,7 +955,7 @@ function Gate({
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8">
       <div className="flex items-center gap-2 opacity-80">
         <Logo />
-        <span className="text-base font-bold">Parley</span>
+        <span className="text-base font-bold">Scrum Pro</span>
       </div>
       <div className="w-full max-w-[420px] rounded-panel border border-line bg-surface px-10 py-9 text-center shadow-rest">
         <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
@@ -956,7 +967,7 @@ function Gate({
         {locked ? (
           <>
             <p className="text-sm text-ink-soft text-pretty">
-              This table is members-only. Enter the space passcode — whoever
+              This workspace is members-only. Enter the workspace passcode — whoever
               invited you has it — and pick a display name. No account, no
               password to remember.
             </p>
@@ -971,7 +982,7 @@ function Gate({
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Passcode"
-                aria-label="Space passcode"
+                aria-label="Workspace passcode"
                 maxLength={12}
                 autoFocus
                 className="min-w-0 flex-1 rounded-chip border bg-surface-hi px-3.5 py-2.5 text-center font-mono text-sm tracking-[0.16em] uppercase"
@@ -990,7 +1001,7 @@ function Gate({
         ) : (
           <>
             <p className="text-sm text-ink-soft text-pretty">
-              This space is open — the link is the invite. Pick a display name
+              This workspace is open — the link is the invite. Pick a display name
               and take a seat. No account, no password.
             </p>
             <button className={buttonPrimary + " mt-5"} onClick={() => onJoin()}>
@@ -1263,7 +1274,7 @@ function NewSessionModal({
   }
 
   return (
-    <Modal title="New session" onClose={onClose} width="480px">
+    <Modal title={kind.id === "poker" ? "New Planning Poker Session" : kind.id === "standup" ? "New Standup Session" : `New ${kind.label} Session`} onClose={onClose} width="480px">
       {/* noValidate: the cutoff's min is a hint for the picker, not a native
           gate — the past check runs in submit() so its message lands in the
           dialog's own alert line instead of a browser validation bubble. */}
@@ -1275,7 +1286,7 @@ function NewSessionModal({
             in the tab order and its focus ring lands on the chip. */}
         {/* A legend's own top margin is not laid out inside its fieldset, so
             the fieldset carries the mt-4 the old "Kind" span had. */}
-        <fieldset className="mt-4 border-0 p-0">
+        {kinds.length > 1 && <fieldset className="mt-4 border-0 p-0">
           <legend className={labelClass}>Kind</legend>
           <div className="flex gap-2">
             {kinds.map((k) => (
@@ -1304,7 +1315,7 @@ function NewSessionModal({
               </label>
             ))}
           </div>
-        </fieldset>
+        </fieldset>}
 
         <label className={labelClass} htmlFor="session-title">
           Title
@@ -1314,7 +1325,7 @@ function NewSessionModal({
           className={inputClass}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Sprint 43 planning"
+          placeholder={kind.id === "poker" ? "Sprint 43 planning" : kind.id === "standup" ? "Daily standup" : `${kind.label} session`}
           maxLength={200}
           autoFocus
         />

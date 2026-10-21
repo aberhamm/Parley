@@ -156,7 +156,7 @@ function MeetSignIn({ onToken }: { onToken: (token: string) => void }) {
   const url = `${location.origin}${handoff.signinPath}`;
   return (
     <section className="flex flex-col gap-3">
-      <h1 className="font-display text-xl font-bold">Sign in to Parley</h1>
+      <h1 className="font-display text-xl font-bold">Sign in to Scrum Pro</h1>
       <p>
         Your code is <strong className="font-mono text-lg">{handoff.displayCode}</strong>. Type it on the
         page that opens.
@@ -234,8 +234,8 @@ function Rooms({ client, onSignedOut }: { client: MeetSidePanel | null; onSigned
     );
   return (
     <section className="flex flex-col gap-2">
-      <h1 className="font-display text-xl font-bold">Your spaces</h1>
-      {spaces.data?.length === 0 && <p>You are not in any space yet. Join one from Parley in a browser tab.</p>}
+      <h1 className="font-display text-xl font-bold">Your workspaces</h1>
+      {spaces.data?.length === 0 && <p>You are not in any workspace yet. Join one from Scrum Pro in a browser tab.</p>}
       <ul className="flex flex-col gap-2">
         {spaces.data?.map((s) => (
           <li key={`${s.orgSlug}/${s.slug}`}>
@@ -289,7 +289,7 @@ function Space({ space, onPick }: { space: Membership; onPick: (id: string) => v
   return (
     <section className="flex flex-col gap-2">
       <h1 className="font-display text-xl font-bold">{view.data.name}</h1>
-      {live.length === 0 && <p>No room is open in this space.</p>}
+      {live.length === 0 && <p>No room is open in this workspace.</p>}
       <ul className="flex flex-col gap-2">
         {live.map((s) => (
           <li key={s.id}>
@@ -329,7 +329,7 @@ function Room({ id, me, client }: { id: string; me: Me; client: MeetSidePanel | 
         <VotePad env={env} myId={me.id} />
       ) : (
         <a className="underline" href={`/session/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">
-          Open this room in Parley
+          Open this room in Scrum Pro
         </a>
       )}
     </section>
@@ -419,7 +419,7 @@ export function MeetMainStage() {
   if (!sessionId)
     return (
       <p className="p-8 text-center text-ink-faint">
-        No room was shared to the main stage. Pick one in the Parley side panel and show it again.
+        No room was shared to the main stage. Pick one in the Scrum Pro side panel and show it again.
       </p>
     );
   return <PresentPage id={sessionId} />;

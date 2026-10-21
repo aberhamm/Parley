@@ -410,7 +410,7 @@ export function mayExistInTracker(receipts: CreationReceipt[]): boolean {
 
 const TRACKER_REFUSALS: Record<string, string> = {
   "this split has stories already created in the tracker, so it cannot be undone here":
-    "Some of these stories were already created in the tracker. Parley never deletes a tracker issue, so this split stays as it is.",
+    "Some of these stories were already created in the tracker. Scrum Pro never deletes a tracker issue, so this split stays as it is.",
   "this split has stories that may already be created in the tracker, so it cannot be undone here":
     "A story from this split may already have reached the tracker. It cannot be undone until the receipt says the story was not created.",
 };

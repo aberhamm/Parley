@@ -41,7 +41,7 @@ describe("ConnectionBanner", () => {
 
   it("offers the one thing a removed member can still do", () => {
     render(<ConnectionBanner status="removed" />);
-    const out = screen.getByRole("link", { name: "Back to Parley" });
+    const out = screen.getByRole("link", { name: "Back to Scrum Pro" });
     expect(out.getAttribute("href")).toBe("/");
   });
 });

@@ -27,7 +27,7 @@ const fetchGrant: DescribedGrant = {
 const logGrant: DescribedGrant = {
   capability: "log",
   scope: "",
-  permits: "Can write lines into this server's log, where they sit alongside Parley's own.",
+  permits: "Can write lines into this server's log, where they sit alongside Scrum Pro's own.",
 };
 
 let registry: PluginRegistry;
@@ -904,7 +904,7 @@ describe("navigation", () => {
   it("offers a way back to the org and home, so the page is not a dead end", async () => {
     render();
     await screen.findByRole("heading", { name: "Plugins" });
-    expect(screen.getByRole("link", { name: "Parley" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Scrum Pro" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: /Back to acme/ }).getAttribute("href")).toBe("/o/acme");
   });
 });

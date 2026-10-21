@@ -48,7 +48,7 @@ function show(canManage = true) {
 }
 
 describe("DecksPanel", () => {
-  it("lists a space's decks with their cards", async () => {
+  it("lists a workspace's decks with their cards", async () => {
     show();
     const row = await screen.findByRole("listitem");
     expect(within(row).getByText("House deck")).toBeTruthy();

@@ -70,7 +70,7 @@ export function PluginsPage() {
       <header className="flex items-center gap-3">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <Logo size={20} />
-          Parley
+          Scrum Pro
         </Link>
       </header>
       <Link

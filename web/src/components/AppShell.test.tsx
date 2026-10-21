@@ -55,7 +55,7 @@ describe("Logo and ConnectionDot", () => {
 });
 
 describe("AppShell", () => {
-  it("renders the space and its children", () => {
+  it("renders the workspace and its children", () => {
     stubAuthMode("open");
     renderShell();
     expect(screen.getByText("Platform Team")).toBeTruthy();
@@ -255,7 +255,7 @@ describe("what the header says the screen is", () => {
     stubAuthMode("open");
     renderShell();
     const header = within(document.querySelector("header")!);
-    const home = header.getByRole("link", { name: "Parley home" });
+    const home = header.getByRole("link", { name: "Scrum Pro home" });
     const img = home.querySelector("img")!;
     expect(img.getAttribute("width")).toBe(String(TOUCH_TARGET_MIN));
     expect(img.getAttribute("height")).toBe(String(TOUCH_TARGET_MIN));
@@ -263,7 +263,7 @@ describe("what the header says the screen is", () => {
     expect(toggle.className).toContain(TOUCH_HIT);
   });
 
-  it("puts the room first when there is one, and the space under it", () => {
+  it("puts the room first when there is one, and the workspace under it", () => {
     stubAuthMode("open");
     renderShell({ title: "Checkout rewrite" });
     const heading = screen.getByRole("heading", { level: 1 });
@@ -272,7 +272,7 @@ describe("what the header says the screen is", () => {
     expect(screen.getByRole("link", { name: "Platform Team" })).toBeTruthy();
   });
 
-  it("falls back to the space where the page is the space itself", () => {
+  it("falls back to the workspace where the page is the workspace itself", () => {
     stubAuthMode("open");
     renderShell();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Platform Team");
@@ -281,7 +281,7 @@ describe("what the header says the screen is", () => {
   it("keeps the way home without spending the header on a wordmark", () => {
     stubAuthMode("open");
     renderShell({ title: "Checkout rewrite" });
-    expect(screen.getByRole("link", { name: "Parley home" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Scrum Pro home" })).toBeTruthy();
     // The slug is in the address bar already; the header's tightest region
     // does not repeat it.
     expect(screen.queryByText("/o/acme/s/platform-team")).toBeNull();
@@ -322,7 +322,7 @@ describe("the header's focus order", () => {
 });
 
 describe("the sidebar on a phone", () => {
-  it("opens the space nav as a sheet, because the rail has nowhere to go", async () => {
+  it("opens the workspace nav as a sheet, because the rail has nowhere to go", async () => {
     asPhone();
     stubAuthMode("open");
     renderShell({ members: roster.slice(0, 2), sessions: [] });
@@ -343,7 +343,7 @@ describe("the sidebar on a phone", () => {
     stubAuthMode("open");
     renderShell({ members: roster.slice(0, 2), sessions: [] });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("navigation", { name: "Space" })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Workspace" })).toBeTruthy();
   });
 });
 
@@ -351,7 +351,7 @@ describe("getting to the table", () => {
   it("offers a skip link that lands on the main region", async () => {
     stubAuthMode("open");
     const { container } = renderShell({ members: roster, sessions: [] });
-    const skip = screen.getByRole("link", { name: "Skip to the table" });
+    const skip = screen.getByRole("link", { name: "Skip to main content" });
     expect(skip.getAttribute("href")).toBe("#main");
     const main = container.querySelector("main");
     expect(main?.id).toBe("main");
@@ -415,29 +415,12 @@ function stubShell(version: string | "fail") {
 }
 
 describe("the build stamp", () => {
-  it("links a released build to its release notes", async () => {
-    stubShell("0.3.0");
+  it.each(["0.3.0", "v0.3.0", "dev"])("shows build %s without an upstream link", async (version) => {
+    stubShell(version);
     renderShell();
-    const link = await screen.findByRole("link", { name: "Parley 0.3.0 release notes" });
-    expect(link.getAttribute("href")).toBe(
-      "https://github.com/lets-parley/parley/releases/tag/v0.3.0",
-    );
-  });
-
-  it("does not double-prefix a version that already carries the v", async () => {
-    stubShell("v0.3.0");
-    renderShell();
-    const link = await screen.findByRole("link", { name: "Parley v0.3.0 release notes" });
-    expect(link.getAttribute("href")).toBe(
-      "https://github.com/lets-parley/parley/releases/tag/v0.3.0",
-    );
-  });
-
-  it("says dev for an unstamped build, and points at the releases page", async () => {
-    stubShell("dev");
-    renderShell();
-    const link = await screen.findByRole("link", { name: "Parley dev release notes" });
-    expect(link.getAttribute("href")).toBe("https://github.com/lets-parley/parley/releases");
+    const stamp = await screen.findByText(`Scrum Pro ${version}`);
+    expect(stamp.closest("a")).toBe(null);
+    expect(screen.queryByRole("link", { name: /release notes/ })).toBe(null);
   });
 
   // Asserted on the rendered output rather than on the absence of a link: a
@@ -621,7 +604,7 @@ describe("the sidebar's Thank action", () => {
     stubAuthMode("open");
     const onThank = vi.fn();
     renderShell({ members: withGuest, onThank });
-    const nav = within(screen.getByRole("navigation", { name: "Space" }));
+    const nav = within(screen.getByRole("navigation", { name: "Workspace" }));
     const thank = nav.getByRole("button", { name: "Thank Marcus Okonjo" });
     expect(thank.className).toContain(TOUCH_HIT);
     // Never yourself, never somebody seated by a link.
@@ -649,10 +632,10 @@ describe("the sidebar's Thank action", () => {
     const onThank = vi.fn();
     renderShell({ members: withGuest, onThank });
     await userEvent.click(screen.getByRole("button", { name: "Toggle sidebar" }));
-    const nav = within(screen.getByRole("navigation", { name: "Space" }));
+    const nav = within(screen.getByRole("navigation", { name: "Workspace" }));
     await userEvent.click(nav.getByRole("button", { name: "Thank Marcus Okonjo" }));
     expect(onThank).toHaveBeenCalledWith("marcus");
-    expect(screen.queryByRole("navigation", { name: "Space" })).toBe(null);
+    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBe(null);
   });
 });
 

@@ -130,7 +130,7 @@ export function NameGate({
           ) : (
             <>
               {because ? `${because} ` : ""}It is the name your team sees at the
-              table. Nothing leaves this server — no account, no email, just a
+              session. Nothing leaves this server — no account, no email, just a
               cookie in this browser.
             </>
           )}
@@ -171,7 +171,7 @@ function SigninGate({ onCancel, because }: { onCancel?: () => void; because?: st
     <Modal title="Sign in to take a seat" onClose={onCancel} opaque>
       <div className="flex flex-col gap-3">
         <p className="text-sm text-ink-soft text-pretty">
-          {because ? `${because} ` : ""}This Parley signs you in through your
+          {because ? `${because} ` : ""}Scrum Pro signs you in through your
           organization. You'll come straight back here, and what you have typed
           is held while you go.
         </p>

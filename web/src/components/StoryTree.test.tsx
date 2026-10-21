@@ -798,7 +798,7 @@ it("shows a refusal that is not about the tracker where the question was asked, 
 it.each([
   [
     "this split has stories already created in the tracker, so it cannot be undone here",
-    "Some of these stories were already created in the tracker. Parley never deletes a tracker issue, so this split stays as it is.",
+    "Some of these stories were already created in the tracker. Scrum Pro never deletes a tracker issue, so this split stays as it is.",
   ],
   [
     "this split has stories that may already be created in the tracker, so it cannot be undone here",

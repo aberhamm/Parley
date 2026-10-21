@@ -68,11 +68,11 @@ export function OrgDirectory() {
       <header className="flex items-center gap-3">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <Logo size={20} />
-          Parley
+          Scrum Pro
         </Link>
       </header>
 
-      <h1 className="font-display text-3xl">Spaces in {org}</h1>
+      <h1 className="font-display text-3xl">Workspaces in {org}</h1>
 
       {spaces.isLoading && (
         <div
@@ -90,7 +90,7 @@ export function OrgDirectory() {
             Sign in to see what {org} keeps here.
           </p>
           <NameGate
-            because={`To see the spaces in ${org}:`}
+            because={`To see the workspaces in ${org}:`}
             onDone={() => void spaces.refetch()}
           />
         </>
@@ -107,14 +107,14 @@ export function OrgDirectory() {
 
       {spaces.isSuccess && rows.length === 0 && (
         <p className="text-ink-soft text-pretty">
-          Nothing here yet. Spaces show up once somebody in this org makes one
+          Nothing here yet. Workspaces show up once somebody in this org makes one
           visible to the org — until then, a link from a teammate is the way in.
         </p>
       )}
 
       {rows.length > 0 && (
         <ul
-          aria-label={`Spaces in ${org}`}
+          aria-label={`Workspaces in ${org}`}
           className="flex flex-col gap-2 rounded-panel border border-line bg-surface p-3 shadow-rest"
         >
           {rows.map((sp) => (
@@ -142,7 +142,7 @@ export function OrgDirectory() {
             disabled={spaces.isFetchingNextPage}
             onClick={() => void spaces.fetchNextPage()}
           >
-            {spaces.isFetchingNextPage ? "Loading more…" : "Show more spaces"}
+            {spaces.isFetchingNextPage ? "Loading more…" : "Show more workspaces"}
           </button>
           {/* Said out loud, because appending rows below the fold is silent
               to somebody who cannot see the list grow. */}
@@ -153,8 +153,8 @@ export function OrgDirectory() {
       )}
 
       <p className="text-sm text-ink-faint text-pretty">
-        A space listed here is one the org can find. Finding it is not the same
-        as getting in: a space with a passcode still asks for it, whoever you
+        A workspace listed here is one the org can find. Finding it is not the same
+        as getting in: a workspace with a passcode still asks for it, whoever you
         are.
       </p>
     </main>

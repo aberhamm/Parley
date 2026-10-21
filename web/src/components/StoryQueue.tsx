@@ -307,7 +307,7 @@ function StoryComposer({
           className={inputClass}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes or a link — Parley keeps it attached"
+          placeholder="Notes or a link — Scrum Pro keeps it attached"
           maxLength={500}
         />
         <div className="mt-2 flex justify-end gap-2.5">

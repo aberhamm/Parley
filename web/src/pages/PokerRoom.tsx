@@ -968,7 +968,7 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
           <div className="rounded-panel border border-line bg-surface px-8 py-6 text-center shadow-rest">
             <p className="font-display text-2xl">This session has ended</p>
             <p className="mt-1.5 text-[13px] text-ink-soft">
-              {env.title} wrapped up. Its results are saved in the space.
+              {env.title} wrapped up. Its results are saved in the workspace.
             </p>
             {/* A link guest's capability is this room alone; the space behind
                 it refuses them, so the way out is not offered — and a guest is
@@ -976,7 +976,7 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
             {!guest && (
             <div className="mt-3.5 flex justify-center gap-2.5">
               <Link to={spacePath(env.orgSlug, env.spaceSlug)} className={buttonPrimary}>
-                Back to the space
+                Back to the workspace
               </Link>
               {isFacilitator && (
                 <button
@@ -1268,8 +1268,8 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
       {confirmEnd && (
         <Modal title="End this session?" onClose={() => setConfirmEnd(false)}>
           <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-            This ends the round for everyone at the table right now. The results stay in{" "}
-            the space and you can reopen the session afterwards.
+            This ends the round for everyone in the session right now. The results stay in{" "}
+            the workspace and you can reopen the session afterwards.
           </p>
           <div className="mt-5 flex justify-end gap-2.5">
             <button className={buttonQuiet} onClick={() => setConfirmEnd(false)}>
@@ -1583,7 +1583,7 @@ function ShownTheDoor({
       </span>
       <h2 className="font-display text-[1.75rem]">You've been shown the door</h2>
       <p role="status" className="max-w-[420px] text-sm text-ink-soft text-pretty">
-        The facilitator took your seat at {env.title}. You're still in the space — ask
+        The facilitator took your seat at {env.title}. You're still in the workspace — ask
         them for a nudge when the table has room again.
       </p>
       {message && (
@@ -1595,7 +1595,7 @@ function ShownTheDoor({
       )}
       {!guest && (
         <Link to={spacePath(env.orgSlug, env.spaceSlug)} className={buttonPrimary}>
-          Back to the space
+          Back to the workspace
         </Link>
       )}
     </div>

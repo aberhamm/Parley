@@ -51,12 +51,12 @@ export function SpaceSettingsPage() {
   const refresh = () => qc.invalidateQueries({ queryKey: ["space", org, slug] });
 
   if (space.isLoading || me.isLoading) {
-    return <p className="p-8 text-center text-ink-faint">Finding the table…</p>;
+    return <p className="p-8 text-center text-ink-faint">Loading workspace…</p>;
   }
   if (!space.data) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="font-display text-2xl">No table under that name</p>
+        <p className="font-display text-2xl">Workspace not found</p>
         <p className="text-sm text-ink-soft">Check the link with your team.</p>
       </div>
     );
@@ -99,7 +99,7 @@ export function SpaceSettingsPage() {
 
         {!canManage ? (
           <p className="mt-6 rounded-card border border-line bg-surface px-5 py-4 text-sm text-ink-soft text-pretty">
-            Only an owner can manage this space. Ask one of them — the roster in
+            Only an owner can manage this workspace. Ask one of them — the roster in
             the sidebar says who they are.
           </p>
         ) : (
@@ -185,7 +185,7 @@ function MembersPanel({
     run(
       m.userId,
       () => api("POST", `${spaceApi(org, slug)}/members/${m.userId}/role`, { role }),
-      role === "owner" ? `${safeDisplayName(m.name)} can now manage this space` : `${safeDisplayName(m.name)} is a member again`,
+      role === "owner" ? `${safeDisplayName(m.name)} can now manage this workspace` : `${safeDisplayName(m.name)} is a member again`,
     );
   }
 
@@ -225,7 +225,7 @@ function MembersPanel({
               <button
                 className={buttonQuiet}
                 disabled={busy === m.userId || lastOwner}
-                title={lastOwner ? "Promote someone else first — a space needs an owner" : undefined}
+                title={lastOwner ? "Promote someone else first — a workspace needs an owner" : undefined}
                 aria-label={(isOwner ? "Make member: " : "Make owner: ") + safeDisplayName(m.name)}
                 onClick={() => setRole(m, isOwner ? "member" : "owner")}
               >
@@ -234,7 +234,7 @@ function MembersPanel({
               <button
                 className={buttonQuiet}
                 disabled={busy === m.userId || lastOwner}
-                title={lastOwner ? "Promote someone else first — a space needs an owner" : undefined}
+                title={lastOwner ? "Promote someone else first — a workspace needs an owner" : undefined}
                 aria-label={"Remove: " + safeDisplayName(m.name)}
                 onClick={() => remove(m)}
               >
@@ -371,11 +371,11 @@ function VisibilityPanel({
       onChanged();
       say(
         next === "org"
-          ? "Listed — anyone in your org can find this space"
-          : "Unlisted — only a link or an invite finds this space now",
+          ? "Listed — anyone in your org can find this workspace"
+          : "Unlisted — only a link or an invite finds this workspace now",
       );
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Could not change who can find this space.");
+      onError(e instanceof Error ? e.message : "Could not change who can find this workspace.");
     } finally {
       setBusy(false);
     }
@@ -388,8 +388,8 @@ function VisibilityPanel({
       </h2>
       <p className="mt-1 text-[13px] text-ink-soft">
         {listed
-          ? "Listed — everyone in your org sees this space in the directory."
-          : "Unlisted — only a link or an invite finds this space."}
+          ? "Listed — everyone in your org sees this workspace in the directory."
+          : "Unlisted — only a link or an invite finds this workspace."}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
@@ -401,12 +401,12 @@ function VisibilityPanel({
         </button>
       </div>
       <p className="mt-2 text-[12px] text-ink-faint text-pretty">
-        Being listed is not the same as being open. A space with a passcode
+        Being listed is not the same as being open. A workspace with a passcode
         still asks for it, whoever finds it.
       </p>
       <p className="mt-2 text-[12px] text-ink-faint text-pretty">
         Unlisted means hidden from your colleagues, not from whoever runs this
-        instance: an org admin can see that this space exists, its name and how
+        instance: an org admin can see that this workspace exists, its name and how
         many members it has, though never what is said in it.
       </p>
     </section>
@@ -444,7 +444,7 @@ function SpaceNamePanel({
       // stays put — say so rather than leaving people hunting for a new link.
       say(`Renamed — the link ${spacePath(org, slug)} still works`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not rename this space.");
+      onError(err instanceof Error ? err.message : "Could not rename this workspace.");
     } finally {
       setBusy(false);
     }
@@ -456,7 +456,7 @@ function SpaceNamePanel({
       <form onSubmit={rename} className="mt-1 flex flex-wrap items-end gap-3">
         <div className="min-w-[200px] flex-1">
           <label htmlFor={nameFieldId} className={labelClass + " mt-0"}>
-            Space name
+            Workspace name
           </label>
           <input
             id={nameFieldId}
@@ -508,7 +508,7 @@ function DangerZone({
       say(`${name} is gone`);
       navigate("/");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Could not delete this space.");
+      onError(err instanceof Error ? err.message : "Could not delete this workspace.");
       setBusy(false);
       setConfirming(false);
     }
@@ -539,7 +539,7 @@ function DangerZone({
               disabled={busy || typed.trim() !== name}
               onClick={() => void destroy()}
             >
-              {busy ? "Deleting…" : "Delete this space"}
+              {busy ? "Deleting…" : "Delete this workspace"}
             </button>
             <button
               className={buttonQuiet}
@@ -556,11 +556,11 @@ function DangerZone({
       ) : (
         <>
           <p className="mt-1 text-[13px] text-ink-soft text-pretty">
-            Deleting takes the space and everything under it, for everybody.
+            Deleting takes the workspace and everything under it, for everybody.
             There is no undo and no archive.
           </p>
           <button className={buttonQuiet + " mt-3"} onClick={() => setConfirming(true)}>
-            Delete this space
+            Delete this workspace
           </button>
         </>
       )}

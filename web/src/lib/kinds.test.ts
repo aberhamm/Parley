@@ -49,7 +49,7 @@ describe("space-scoped field options", () => {
     createdAt: "2026-08-18T10:00:00.000Z",
   };
 
-  it("appends a space's own decks after the built-ins", () => {
+  it("appends a workspace's own decks after the built-ins", () => {
     const field = getKind("poker")!.fields![0];
     const opts = fieldOptions(field, [deck]);
     expect(opts.slice(0, field.options.length)).toEqual(field.options);

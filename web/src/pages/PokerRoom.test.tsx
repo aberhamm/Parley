@@ -861,20 +861,20 @@ describe("PokerRoom link guest", () => {
   // A guest's capability is this one room. The space behind it refuses them,
   // so an ended session must not hand them a link straight into a 403 — the
   // same reasoning that hides the breadcrumb and the space nav.
-  it("offers a guest no way into the space when the session has ended", () => {
+  it("offers a guest no way into the workspace when the session has ended", () => {
     const env = envelope({ endedAt: "2026-08-18T11:00:00.000Z" });
     const guestMe: Me = { id: "guest-1", name: "Priya Raman", avatarHue: 200 };
     renderApp(<PokerRoom env={env} me={guestMe} guest />);
     expect(screen.getByText("This session has ended")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Back to the space" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Back to the workspace" })).toBeNull();
   });
 
   // The same screen for a seated member still has its way out.
-  it("still offers a seated member the way back to the space", () => {
+  it("still offers a seated member the way back to the workspace", () => {
     const env = envelope({ endedAt: "2026-08-18T11:00:00.000Z" });
     renderApp(<PokerRoom env={env} me={me} />);
     expect(
-      screen.getByRole("link", { name: "Back to the space" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Back to the workspace" }).getAttribute("href"),
     ).toBe("/o/acme/s/platform-team");
   });
 });
@@ -1044,7 +1044,7 @@ describe("the screen a removed person lands on", () => {
     );
     expect(screen.getByText(/wrong room, sorry/)).toBeTruthy();
     // Never the space-level wording: they still belong to the space.
-    expect(screen.queryByText(/no longer have access to this space/)).toBeNull();
+    expect(screen.queryByText(/no longer have access to this workspace/)).toBeNull();
     expect(screen.queryByTestId("table-field")).toBeNull();
   });
 

@@ -182,14 +182,14 @@ export function CatalogPage() {
       <header className="flex items-center gap-3">
         <Link to="/" className="flex items-center gap-3 font-bold tracking-tight">
           <Logo size={20} />
-          Parley
+          Scrum Pro
         </Link>
       </header>
       <Link
         to={"/"}
         className="mt-6 inline-block text-[13px] font-bold text-accent hover:underline"
       >
-        ← Back to your spaces
+        ← Back to your workspaces
       </Link>
       <h1 className="mt-3 font-display text-3xl">Plugin catalog</h1>
       <p className="mt-2 max-w-prose text-sm text-ink-soft text-pretty">

@@ -194,7 +194,7 @@ describe("SpacePage session list", () => {
     expect(within(row).getByRole("img", { name: "Poker" }).querySelector('[data-token="card"]')).toBeTruthy();
   });
 
-  it("drops the kind label in a space whose sessions are all one kind", async () => {
+  it("drops the kind label in a workspace whose sessions are all one kind", async () => {
     view = {
       ...space,
       sessions: (space.sessions ?? []).filter((s) => s.kind === "standup"),
@@ -262,7 +262,7 @@ describe("SpacePage live, open and logbook groups", () => {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
     await screen.findAllByText("Sprint 12 grooming");
 
-    const live = main().getByRole("list", { name: "On the table now" });
+    const live = main().getByRole("list", { name: "Live sessions" });
     const rejoin = within(live).getByRole("link", { name: "Rejoin Sprint 12 grooming" });
     expect(rejoin.getAttribute("href")).toBe("/session/s1");
     expect(within(live).getByRole("link", { name: "Rejoin Retro of record" }).getAttribute("href")).toBe(
@@ -284,7 +284,7 @@ describe("SpacePage live, open and logbook groups", () => {
     } as unknown as SpaceView;
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
     await screen.findAllByText("Sprint 12 grooming");
-    expect(main().queryByRole("list", { name: "On the table now" })).toBe(null);
+    expect(main().queryByRole("list", { name: "Live sessions" })).toBe(null);
     expect(main().queryByRole("link", { name: /^Rejoin/ })).toBe(null);
   });
 
@@ -301,7 +301,7 @@ describe("SpacePage live, open and logbook groups", () => {
     expect(within(logbook).queryByText("Daily")).toBe(null);
     expect(within(logbook).queryByText("ended")).toBe(null);
 
-    const open = main().getByRole("list", { name: "Open rooms" });
+    const open = main().getByRole("list", { name: "Open sessions" });
     expect(within(open).getByText("Daily")).toBeTruthy();
     expect(within(open).queryByText("Pokerful planning")).toBe(null);
   });
@@ -331,7 +331,7 @@ describe("SpacePage live, open and logbook groups", () => {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
     await screen.findAllByText("Daily");
 
-    const open = main().getByRole("list", { name: "Open rooms" });
+    const open = main().getByRole("list", { name: "Open sessions" });
     expect(within(open).getAllByText("active 6 days ago").length).toBeGreaterThan(0);
     expect(within(open).queryByText(/opened/)).toBe(null);
     expect(within(open).queryByText(/idle/)).toBe(null);
@@ -517,7 +517,7 @@ describe("SpacePage live, open and logbook groups", () => {
 
   it("does not steal / from a field in an open dialog", async () => {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+    await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
     const title = screen.getByRole("textbox", { name: "Title" }) as HTMLInputElement;
     await userEvent.type(title, "1/2");
     expect(title.value).toBe("1/2");
@@ -598,101 +598,40 @@ describe("SpacePage live, open and logbook groups", () => {
 });
 
 describe("SpacePage create dialog", () => {
-  it("offers only the kinds the space view lists, so a retired one cannot be picked", async () => {
-    // The server omits a retired kind from the space view; the dialog must
-    // offer what the server listed rather than every kind it can render.
+  it("starts a standup directly without asking for a kind again", async () => {
+    renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
+    await userEvent.click(await screen.findByRole("button", { name: "New Standup Session" }));
+    const dialog = within(screen.getByRole("dialog", { name: "New Standup Session" }));
+    expect(dialog.queryByRole("group", { name: "Kind" })).toBe(null);
+    expect(dialog.getByRole("group", { name: "Mode" })).toBeTruthy();
+    expect(dialog.getByPlaceholderText("Daily standup")).toBeTruthy();
+  });
+
+  it("only offers session types the workspace allows", async () => {
     space.kinds = ["poker"];
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-      const dialog = within(screen.getByRole("dialog"));
-      expect(dialog.getByRole("radio", { name: "Poker" })).toBeTruthy();
-      // The tab strip still names Standup — that filters existing sessions —
-      // so this assertion has to be scoped to the dialog, and it fails for a
-      // dialog that simply rendered every built-in kind.
-      expect(dialog.queryByRole("radio", { name: "Standup" })).toBe(null);
-    } finally {
-      delete space.kinds;
-    }
+      await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
+      expect(screen.queryByRole("button", { name: "New Standup Session" })).toBe(null);
+      expect(within(screen.getByRole("dialog")).queryByRole("group", { name: "Kind" })).toBe(null);
+    } finally { delete space.kinds; }
   });
 
-  it("offers every kind when the space view lists them all", async () => {
-    space.kinds = ["poker", "standup"];
-    try {
-      renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-      const dialog = within(screen.getByRole("dialog"));
-      expect(dialog.getByRole("radio", { name: "Poker" })).toBeTruthy();
-      expect(dialog.getByRole("radio", { name: "Standup" })).toBeTruthy();
-    } finally {
-      delete space.kinds;
-    }
-  });
-
-  it("offers every kind when the server omits the kinds field (older server)", async () => {
-    // No `space.kinds` is set here: an older server sends no field at all,
-    // and the page must fall back to offering everything rather than
-    // treating the absence as an empty allowlist.
+  it("offers both core actions when older servers omit kinds", async () => {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-    const dialog = within(screen.getByRole("dialog"));
-    expect(dialog.getByRole("radio", { name: "Poker" })).toBeTruthy();
-    expect(dialog.getByRole("radio", { name: "Standup" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "New Planning Poker Session" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "New Standup Session" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "New session" })).toBe(null);
   });
 
-  // The picker shows each kind as its object, scaled up, and the object adds
-  // nothing to the radio's name: "Poker", not "Poker Poker".
-  it("shows each kind's object in the picker without changing the radio's name", async () => {
-    renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-    const dialog = within(screen.getByRole("dialog"));
-    const poker = dialog.getByRole("radio", { name: "Poker" }).closest("label")!;
-    expect([...poker.querySelector('[data-token="card"]')!.classList]).toContain("w-[34px]");
-    // Hover is on the whole choice, so the label is the group.
-    expect([...poker.classList]).toContain("group");
-    const standup = dialog.getByRole("radio", { name: "Standup" }).closest("label")!;
-    expect(standup.querySelector('[data-token="round"]')).toBeTruthy();
-  });
-
-  it("offers the kind as one named radio group, like Mode beside it", async () => {
-    // The kind picker was a pair of aria-pressed buttons under a bare "Kind"
-    // span: two tab stops, no group name, and a different pattern from the
-    // Mode radios in the same dialog. A native radio group gives one tab
-    // stop, arrow keys and the group's name from the platform.
-    renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-    const dialog = within(screen.getByRole("dialog"));
-    const group = within(dialog.getByRole("group", { name: "Kind" }));
-    const poker = group.getByRole("radio", { name: "Poker" }) as HTMLInputElement;
-    const standup = group.getByRole("radio", { name: "Standup" }) as HTMLInputElement;
-    expect(poker.checked).toBe(true);
-    expect(standup.checked).toBe(false);
-    expect(poker.name).toBe(standup.name);
-    expect(dialog.queryByRole("button", { name: "Poker" })).toBe(null);
-
-    await userEvent.click(standup);
-    expect(standup.checked).toBe(true);
-    expect(poker.checked).toBe(false);
-    // Standup's own fields follow the choice.
-    expect(dialog.getByRole("group", { name: "Mode" })).toBeTruthy();
-
-    // Arrow keys move the choice, the platform's radio path.
-    standup.focus();
-    await userEvent.keyboard("{ArrowLeft}");
-    expect(poker.checked).toBe(true);
-    expect(document.activeElement).toBe(poker);
-    expect(dialog.queryByRole("group", { name: "Mode" })).toBe(null);
-    await userEvent.keyboard("{ArrowRight}");
-    expect(standup.checked).toBe(true);
-    expect(document.activeElement).toBe(standup);
-  });
-
-  it("hides New session when the space offers no kinds", async () => {
+  it("hides New session when the workspace offers no kinds", async () => {
     space.kinds = [];
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
       await findSessionsHeading();
-      expect(screen.queryByRole("button", { name: "New session" })).toBe(null);
+      expect(screen.queryByRole("button", { name: "New Planning Poker Session" })).toBe(null);
+      expect(screen.queryByRole("button", { name: "New Standup Session" })).toBe(null);
+      expect(screen.queryByRole("button", { name: "Other session types" })).toBe(null);
     } finally {
       delete space.kinds;
     }
@@ -702,13 +641,15 @@ describe("SpacePage create dialog", () => {
     space.kinds = ["poker", "standup"];
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+      await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
       const dialog = within(screen.getByRole("dialog"));
       // Poker is first in registry order, so the dialog opens on it.
       expect(dialog.getByRole("checkbox", { name: /Auto-reveal when everyone has voted/ })).toBeTruthy();
-      await userEvent.click(dialog.getByRole("radio", { name: "Standup" }));
-      expect(dialog.queryByRole("checkbox", { name: /Auto-reveal when everyone has voted/ })).toBe(null);
-      expect(dialog.queryByRole("checkbox", { name: /Open voting/ })).toBe(null);
+      await userEvent.click(dialog.getByRole("button", { name: "Cancel" }));
+      await userEvent.click(screen.getByRole("button", { name: "New Standup Session" }));
+      const standup = within(screen.getByRole("dialog"));
+      expect(standup.queryByRole("checkbox", { name: /Auto-reveal when everyone has voted/ })).toBe(null);
+      expect(standup.queryByRole("checkbox", { name: /Open voting/ })).toBe(null);
     } finally {
       delete space.kinds;
     }
@@ -739,7 +680,7 @@ describe("SpacePage create dialog", () => {
     }) as typeof defaultApi);
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+      await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
       const dialog = within(screen.getByRole("dialog"));
       await userEvent.type(dialog.getByLabelText("Title"), "Sprint off");
       await userEvent.click(dialog.getByRole("button", { name: "Start session" }));
@@ -776,9 +717,8 @@ describe("SpacePage create dialog", () => {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
       // The session row names the plugin kind by its display name, not its id.
       expect(await screen.findAllByRole("link", { name: /^Retrospective · Retro of record/ })).not.toHaveLength(0);
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
-      const dialog = within(screen.getByRole("dialog"));
-      await userEvent.click(dialog.getByRole("radio", { name: "Retrospective" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Other session types" }));
+      const dialog = within(screen.getByRole("dialog", { name: "New Retrospective Session" }));
       await userEvent.type(dialog.getByLabelText("Title"), "Sprint 12 retro");
       await userEvent.click(dialog.getByRole("button", { name: "Start session" }));
       await waitFor(() => {
@@ -794,9 +734,29 @@ describe("SpacePage create dialog", () => {
     }
   });
 
+  it("keeps multiple plugin session types selectable without core types in the picker", async () => {
+    space.kinds = ["poker", "standup", "acme.retro", "acme.workshop"];
+    space.kindOptions = [
+      { kind: "acme.retro", display: "Retrospective", plugin: true },
+      { kind: "acme.workshop", display: "Workshop", plugin: true },
+    ];
+    try {
+      renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
+      await userEvent.click(await screen.findByRole("button", { name: "Other session types" }));
+      const dialog = within(screen.getByRole("dialog"));
+      const picker = within(dialog.getByRole("group", { name: "Kind" }));
+      expect(picker.getByRole("radio", { name: "Retrospective" })).toBeTruthy();
+      const workshop = picker.getByRole("radio", { name: "Workshop" }) as HTMLInputElement;
+      await userEvent.click(workshop);
+      expect(workshop.checked).toBe(true);
+      expect(picker.queryByRole("radio", { name: "Poker" })).toBe(null);
+      expect(picker.queryByRole("radio", { name: "Standup" })).toBe(null);
+    } finally { delete space.kinds; delete space.kindOptions; }
+  });
+
   it("offers open voting in the create dialog and says what it changes", async () => {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+    await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
     const dialog = within(screen.getByRole("dialog"));
     const box = dialog.getByRole("checkbox", { name: /Open voting/ });
     expect((box as HTMLInputElement).checked).toBe(false);
@@ -828,7 +788,7 @@ describe("SpacePage create dialog", () => {
     }) as typeof defaultApi);
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+      await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
       const dialog = within(screen.getByRole("dialog"));
       await userEvent.type(dialog.getByLabelText("Title"), "Sprint open");
       await userEvent.click(dialog.getByRole("checkbox", { name: /Open voting/ }));
@@ -873,7 +833,7 @@ describe("SpacePage create dialog", () => {
     }) as typeof defaultApi);
     try {
       renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-      await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+      await userEvent.click(await screen.findByRole("button", { name: "New Planning Poker Session" }));
       const dialog = within(screen.getByRole("dialog"));
       await userEvent.type(dialog.getByLabelText("Title"), "Sprint on");
       await userEvent.click(dialog.getByRole("checkbox", { name: /Auto-reveal when everyone has voted/ }));
@@ -944,7 +904,7 @@ describe("SpacePage invite strip", () => {
     expect(screen.queryByText(/Invite link copied/)).toBe(null);
   });
 
-  it("copies the bare link when the space is open", async () => {
+  it("copies the bare link when the workspace is open", async () => {
     view = { ...space, protected: false, passcode: undefined } as SpaceView;
     const writeText = clipboard();
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
@@ -993,7 +953,7 @@ describe("SpacePage last-opened stamp", () => {
     expect(stamps().length).toBe(1);
   });
 
-  it("does not stamp a space the visitor is not a member of", async () => {
+  it("does not stamp a workspace the visitor is not a member of", async () => {
     const { api } = await import("../lib/api");
     vi.mocked(api).mockClear();
     view = { slug: "platform-team", name: "Platform Team", protected: true } as SpaceView;
@@ -1039,7 +999,7 @@ describe("SpacePage session badge", () => {
     expect(within(screen.getByRole("main")).getByText("Pokerful planning").closest("details")).toBeTruthy();
   });
 
-  it("re-reads the space on a timer, so the count does not freeze at page load", async () => {
+  it("re-reads the workspace on a timer, so the count does not freeze at page load", async () => {
     // Call history survives between tests in this file, so the count has to
     // start from a clean slate rather than from whatever ran before.
     vi.mocked(api).mockClear();
@@ -1070,7 +1030,7 @@ describe("SpacePage session badge", () => {
     failSpace = true;
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(screen.queryByText("No table under that name")).toBe(null);
+    expect(screen.queryByText("Workspace not found")).toBe(null);
     expect(within(screen.getByRole("main")).getByRole("heading", { name: "Sessions" })).toBeTruthy();
     expect(row("Sprint 12 grooming").getByText("3 here")).toBeTruthy();
   });
@@ -1078,7 +1038,7 @@ describe("SpacePage session badge", () => {
   it("still shows the dead end when the very first read fails", async () => {
     failSpace = true;
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    expect(await screen.findByText("No table under that name")).toBeTruthy();
+    expect(await screen.findByText("Workspace not found")).toBeTruthy();
   });
 });
 
@@ -1256,7 +1216,7 @@ describe("SpacePage invite links", () => {
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/o/acme/s/platform-team" });
 
-    expect(await screen.findByLabelText("Space passcode")).toBeTruthy();
+    expect(await screen.findByLabelText("Workspace passcode")).toBeTruthy();
     const joins = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls
       .slice(before)
       .filter(([, path]) => path === "/api/orgs/acme/spaces/platform-team/join");
@@ -1339,7 +1299,7 @@ describe("SpacePage invite links across a sign-in round trip", () => {
     vi.mocked(api).mockImplementation((async (_m: string, path: string) => {
       if (path === "/api/me") return null;
       if (path === "/api/auth") return { mode: "oidc" };
-      if (path === "/api/orgs/acme/spaces/platform-team/invite") throw new Error("That passcode doesn't match this space.");
+      if (path === "/api/orgs/acme/spaces/platform-team/invite") throw new Error("That passcode doesn't match this workspace.");
       if (path.endsWith("/decks")) return decks;
       if (/\/kudos(\?waiting=1)?$/.test(path)) return [];
       if (path.startsWith("/api/orgs/acme/spaces/")) return view;
@@ -1412,7 +1372,7 @@ describe("SpacePage invite links across a sign-in round trip", () => {
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/o/acme/s/platform-team" });
 
-    expect(await screen.findByLabelText("Space passcode")).toBeTruthy();
+    expect(await screen.findByLabelText("Workspace passcode")).toBeTruthy();
     expect(
       (api as unknown as { mock: { calls: unknown[][] } }).mock.calls
         .slice(before)
@@ -1430,7 +1390,7 @@ describe("SpacePage invite links across a sign-in round trip", () => {
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/o/acme/s/platform-team" });
 
-    expect(await screen.findByLabelText("Space passcode")).toBeTruthy();
+    expect(await screen.findByLabelText("Workspace passcode")).toBeTruthy();
     expect(
       (api as unknown as { mock: { calls: unknown[][] } }).mock.calls
         .slice(before)
@@ -1452,7 +1412,7 @@ describe("SpacePage invite links across a sign-in round trip", () => {
     const before = (api as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
     renderApp(routed, { route: "/o/acme/s/platform-team" });
 
-    expect(await screen.findByLabelText("Space passcode")).toBeTruthy();
+    expect(await screen.findByLabelText("Workspace passcode")).toBeTruthy();
     expect(
       (api as unknown as { mock: { calls: unknown[][] } }).mock.calls
         .slice(before)
@@ -1473,7 +1433,7 @@ describe("SpacePage invite links across a sign-in round trip", () => {
     window.history.replaceState(null, "", "/o/acme/s/platform-team");
     renderApp(routed, { route: "/o/acme/s/platform-team" });
 
-    expect(await screen.findByLabelText("Space passcode")).toBeTruthy();
+    expect(await screen.findByLabelText("Workspace passcode")).toBeTruthy();
   });
 });
 
@@ -1609,7 +1569,7 @@ describe("SpacePage expired-session remint", () => {
       path: "/o/:org/s/:slug",
     });
     await findSessionsHeading();
-    await userEvent.click(screen.getByRole("button", { name: "New session" }));
+    await userEvent.click(screen.getByRole("button", { name: "New Planning Poker Session" }));
     const title = await screen.findByLabelText(/session title|title/i);
     await userEvent.type(title, "Half-typed planning");
 
@@ -1709,11 +1669,11 @@ describe("SpacePage deck chooser", () => {
 
   async function openDialog() {
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
-    await userEvent.click(await screen.findByRole("button", { name: "New session" }));
+    await userEvent.click(await screen.findByRole("button", { name: space.kinds?.length === 1 && space.kinds[0] === "standup" ? "New Standup Session" : "New Planning Poker Session" }));
     return within(screen.getByRole("dialog"));
   }
 
-  it("offers the space's own decks after the built-in four", async () => {
+  it("offers the workspace's own decks after the built-in four", async () => {
     space.kinds = ["poker"];
     decks = [house];
     try {
@@ -2200,7 +2160,7 @@ describe("SpacePage kudos wall", () => {
     // normal fixtures, exactly like the server's real 409 cap response.
     vi.mocked(api).mockImplementation(async (method: string, path: string, body?: unknown) => {
       if (method === "POST" && path.endsWith("/kudos")) {
-        throw new ApiError(409, "This space has reached its kudos cap for today.");
+        throw new ApiError(409, "This workspace has reached its kudos cap for today.");
       }
       return defaultApi(method, path, body);
     });
@@ -2211,7 +2171,7 @@ describe("SpacePage kudos wall", () => {
     await userEvent.click(wall.getByRole("button", { name: "Give kudos" }));
 
     await waitFor(() =>
-      expect(statusText()).toContain("This space has reached its kudos cap for today."),
+      expect(statusText()).toContain("This workspace has reached its kudos cap for today."),
     );
     // The failed kudo never joined the wall.
     expect(wall.queryByTestId("kudos-empty")).toBeTruthy();
@@ -2267,7 +2227,7 @@ describe("SpacePage standup participation trend", () => {
     expect(within(region).queryAllByRole("listitem")).toHaveLength(0);
   });
 
-  it("sets your own away days from the space page, outside any room", async () => {
+  it("sets your own away days from the workspace page, outside any room", async () => {
     const user = userEvent.setup();
     const { region } = await open();
     const first = await within(region).findByLabelText("First day away");
@@ -2286,7 +2246,7 @@ describe("SpacePage standup participation trend", () => {
     ).toBeTruthy();
   });
 
-  it("asks for the trend only for a space that holds standups", async () => {
+  it("asks for the trend only for a workspace that holds standups", async () => {
     view = { ...space, sessions: (space.sessions ?? []).filter((s) => s.kind !== "standup") } as SpaceView;
     vi.mocked(api).mockImplementation(defaultApi);
     renderApp(<SpacePage />, { route: "/o/acme/s/platform-team", path: "/o/:org/s/:slug" });
@@ -2385,7 +2345,7 @@ describe("SpacePage kudos rail", () => {
 
   it("thanks a member from the sidebar: the form opens with them chosen and For what focused", async () => {
     const wall = await open();
-    const nav = within(screen.getByRole("navigation", { name: "Space" }));
+    const nav = within(screen.getByRole("navigation", { name: "Workspace" }));
     await userEvent.click(await nav.findByRole("button", { name: "Thank Dana Whitfield" }));
     const to = wall.getByLabelText("To") as HTMLSelectElement;
     expect(to.value).toBe("dana");
@@ -2394,7 +2354,7 @@ describe("SpacePage kudos rail", () => {
 
   it("hands focus back to For what on a second Thank, with the form already open", async () => {
     const wall = await open();
-    const nav = within(screen.getByRole("navigation", { name: "Space" }));
+    const nav = within(screen.getByRole("navigation", { name: "Workspace" }));
     const thank = await nav.findByRole("button", { name: "Thank Dana Whitfield" });
     await userEvent.click(thank);
     await waitFor(() => expect(document.activeElement).toBe(wall.getByLabelText("For what")));
@@ -2404,7 +2364,7 @@ describe("SpacePage kudos rail", () => {
 
   it("offers no Thank on your own row or on a link guest's", async () => {
     await open();
-    const nav = within(screen.getByRole("navigation", { name: "Space" }));
+    const nav = within(screen.getByRole("navigation", { name: "Workspace" }));
     expect(await nav.findByRole("button", { name: "Thank Dana Whitfield" })).toBeTruthy();
     expect(nav.queryByRole("button", { name: "Thank Marcus Okonjo" })).toBe(null);
     expect(nav.queryByRole("button", { name: /Thank Link Visitor/ })).toBe(null);

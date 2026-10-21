@@ -49,12 +49,12 @@ vi.mock("../lib/api", async () => {
       if (path === "/api/orgs") return myOrgs;
       if (path === "/api/spaces" && method === "GET") {
         if (holdList) await holdList;
-        if (listFails) throw new Error("Could not list your spaces.");
+        if (listFails) throw new Error("Could not list your workspaces.");
         return mySpaces;
       }
       if (path === "/api/spaces") {
         if (holdCreate) await holdCreate;
-        if (createFails) throw new Error("Could not create the space.");
+        if (createFails) throw new Error("Could not create the workspace.");
         return createResult;
       }
       if (path.includes("/plugins/panels")) return [];
@@ -141,7 +141,7 @@ describe("Landing, signed in with spaces", () => {
   it("lists every space I am a member of, most recently active first", async () => {
     renderApp(<Landing />);
 
-    const list = await screen.findByRole("list", { name: /your spaces/i });
+    const list = await screen.findByRole("list", { name: /your workspaces/i });
     const links = within(list).getAllByRole("link");
     expect(within(links[0]).getByText("Platform Team")).toBeTruthy();
     expect(within(links[1]).getByText("Design Guild")).toBeTruthy();
@@ -162,7 +162,7 @@ describe("Landing, signed in with spaces", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Harbour Labs" }));
     await userEvent.type(screen.getByPlaceholderText(/Platform Team/), "New Crew");
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(spaceCalls()).toContainEqual([
@@ -184,7 +184,7 @@ describe("Landing, signed in with spaces", () => {
 
     await screen.findByRole("button", { name: "Harbour Labs" });
     await userEvent.type(screen.getByPlaceholderText(/Platform Team/), "New Crew");
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(spaceCalls()).toContainEqual(["POST", "/api/spaces", { name: "New Crew", org: "acme" }]),
@@ -200,7 +200,7 @@ describe("Landing, signed in with spaces", () => {
     ];
     const { container } = renderApp(<Landing />);
 
-    const list = await screen.findByRole("list", { name: /your spaces/i });
+    const list = await screen.findByRole("list", { name: /your workspaces/i });
     const links = within(list).getAllByRole("link");
     const cue = within(links[0]).getByText("A thank-you is waiting");
     expect(cue.textContent).not.toMatch(/\d/);
@@ -233,16 +233,16 @@ describe("Landing, signed in with spaces", () => {
     expect(within(quiet).queryByText(/thank-you/i)).toBeNull();
   });
 
-  it("marks the spaces that will ask for a passcode", async () => {
+  it("marks the workspaces that will ask for a passcode", async () => {
     renderApp(<Landing />);
 
-    const list = await screen.findByRole("list", { name: /your spaces/i });
+    const list = await screen.findByRole("list", { name: /your workspaces/i });
     const links = within(list).getAllByRole("link");
     expect(within(links[0]).queryByText(/passcode/i)).not.toBeNull();
     expect(within(links[1]).queryByText(/passcode/i)).toBeNull();
   });
 
-  it("opts the space-name field out of payment autofill", async () => {
+  it("opts the workspace-name field out of payment autofill", async () => {
     renderApp(<Landing />);
 
     const field = await screen.findByPlaceholderText(/Platform Team/);
@@ -250,15 +250,15 @@ describe("Landing, signed in with spaces", () => {
     expect(field.getAttribute("autocomplete")).toBe("off");
   });
 
-  it("keeps creating a space available alongside the list", async () => {
+  it("keeps creating a workspace available alongside the list", async () => {
     renderApp(<Landing />);
 
-    await screen.findByRole("list", { name: /your spaces/i });
+    await screen.findByRole("list", { name: /your workspaces/i });
     await userEvent.type(
       screen.getByPlaceholderText(/Platform Team/),
       "New Crew",
     );
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith("/o/acme/s/platform-team"),
@@ -292,20 +292,20 @@ describe("Landing", () => {
 
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() =>
       expect(vi.mocked(api).mock.calls.some((c) => c[1] === "/api/me")).toBe(true),
     );
     expect(listCalls()).toHaveLength(0);
-    expect(screen.queryByRole("list", { name: /your spaces/i })).toBeNull();
+    expect(screen.queryByRole("list", { name: /your workspaces/i })).toBeNull();
   });
 
   it("falls back to the create-first view when I am in no spaces", async () => {
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() => expect(listCalls().length).toBeGreaterThan(0));
-    expect(screen.queryByRole("list", { name: /your spaces/i })).toBeNull();
+    expect(screen.queryByRole("list", { name: /your workspaces/i })).toBeNull();
   });
 
   it("finishes the create left pending by a sign-in round trip", async () => {
@@ -334,7 +334,7 @@ describe("Landing", () => {
 
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() =>
       expect(vi.mocked(api).mock.calls.some((c) => c[1] === "/api/me")).toBe(
         true,
@@ -358,7 +358,7 @@ describe("Landing", () => {
 
     const field = await screen.findByPlaceholderText(/Platform Team/);
     await userEvent.type(field, "Platform Team");
-    const open = screen.getByRole("button", { name: "Open a space" });
+    const open = screen.getByRole("button", { name: "Create workspace" });
     await userEvent.click(open);
     const dialog = await screen.findByRole("dialog");
 
@@ -385,7 +385,7 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
 
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith("/o/acme/s/platform-team"),
@@ -395,7 +395,7 @@ describe("Landing", () => {
   it("creates nothing on a plain signed-in visit with nothing pending", async () => {
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() =>
       expect(vi.mocked(api).mock.calls.some((c) => c[1] === "/api/me")).toBe(
         true,
@@ -414,7 +414,7 @@ describe("Landing", () => {
 
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() =>
       expect(vi.mocked(api).mock.calls.some((c) => c[1] === "/api/me")).toBe(
         true,
@@ -432,14 +432,14 @@ describe("Landing", () => {
 
     const view = renderApp(<Landing />);
 
-    await screen.findByText("Could not create the space.");
+    await screen.findByText("Could not create the workspace.");
     expect(sessionStorage.getItem(pendingKey)).toBeNull();
 
     view.unmount();
     vi.mocked(api).mockClear();
     renderApp(<Landing />);
 
-    await screen.findByRole("button", { name: "Open a space" });
+    await screen.findByRole("button", { name: "Create workspace" });
     await waitFor(() =>
       expect(vi.mocked(api).mock.calls.some((c) => c[1] === "/api/me")).toBe(
         true,
@@ -452,7 +452,7 @@ describe("Landing", () => {
   // Try again is the visible half of a failed create. It may only be offered
   // while there is something to retry: once the POST has landed the space
   // exists, and the button would be an inert control sitting next to an error.
-  it("offers Try again after a failed create, and withdraws it once the space exists", async () => {
+  it("offers Try again after a failed create, and withdraws it once the workspace exists", async () => {
     createFails = true;
 
     renderApp(<Landing />);
@@ -461,8 +461,8 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
-    await screen.findByText("Could not create the space.");
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+    await screen.findByText("Could not create the workspace.");
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
 
     // The retry lands the POST, then stumbles on a body with no slug. The space
@@ -488,9 +488,9 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
 
-    const waiting = await screen.findByRole("button", { name: "Opening…" });
+    const waiting = await screen.findByRole("button", { name: "Creating…" });
     expect((waiting as HTMLButtonElement).disabled).toBe(true);
 
     await act(async () => {
@@ -504,13 +504,13 @@ describe("Landing", () => {
 
   // A list that could not be read is not a list with nothing in it. Rendering
   // the failure as an empty roster tells someone with six spaces they have none.
-  it("says so when the space list cannot be read, and reads it again on request", async () => {
+  it("says so when the workspace list cannot be read, and reads it again on request", async () => {
     listFails = true;
 
     renderApp(<Landing />);
 
-    await screen.findByText(/couldn't load your spaces/i);
-    expect(screen.queryByRole("list", { name: /your spaces/i })).toBeNull();
+    await screen.findByText(/couldn't load your workspaces/i);
+    expect(screen.queryByRole("list", { name: /your workspaces/i })).toBeNull();
 
     listFails = false;
     mySpaces = [
@@ -518,7 +518,7 @@ describe("Landing", () => {
     ];
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-    const list = await screen.findByRole("list", { name: /your spaces/i });
+    const list = await screen.findByRole("list", { name: /your workspaces/i });
     expect(within(list).getByText("Platform Team")).toBeTruthy();
   });
 
@@ -531,12 +531,12 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
-    await screen.findByText("Could not create the space.");
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+    await screen.findByText("Could not create the workspace.");
     expect(spaceCalls()).toHaveLength(1);
 
     createFails = false;
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
 
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith("/o/acme/s/platform-team"),
@@ -590,7 +590,7 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    const open = screen.getByRole("button", { name: "Open a space" });
+    const open = screen.getByRole("button", { name: "Create workspace" });
     await userEvent.click(open);
 
     // The space exists; only the navigate blew up, on a body with no slug.
@@ -620,7 +620,7 @@ describe("Landing", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    const open = screen.getByRole("button", { name: "Open a space" });
+    const open = screen.getByRole("button", { name: "Create workspace" });
     await userEvent.click(open);
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith("/o/acme/s/platform-team"),
@@ -658,7 +658,7 @@ describe("Landing, a pending create raced by both paths", () => {
       await screen.findByPlaceholderText(/Platform Team/),
       "Platform Team",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Open a space" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create workspace" }));
     await screen.findByRole("heading", { name: /what should we call you/i });
     expect(JSON.parse(sessionStorage.getItem(pendingKey) ?? "{}").name).toBe(
       "Platform Team",
@@ -675,7 +675,7 @@ describe("Landing, a pending create raced by both paths", () => {
   // where nothing has resolved me yet, so if it stops creating, or stops
   // taking the name from the pending slot, nobody notices until a stray space
   // appears on the next mount.
-  it("creates the space itself when the gate finishes first", async () => {
+  it("creates the workspace itself when the gate finishes first", async () => {
     await stashViaTheForm();
 
     await finishTheGate();
@@ -737,31 +737,31 @@ describe("Landing, a link guest", () => {
     asGuest = true;
   });
 
-  it("does not ask for the space list as a link guest", async () => {
+  it("does not ask for the workspace list as a link guest", async () => {
     renderApp(<Landing />);
 
     // Let the me query settle and, if the space list is (wrongly) enabled,
     // let its fetch actually fire — that happens a render cycle after
     // me.data lands, not in the same tick as the /api/me call itself.
-    await waitFor(() => expect(screen.getByText("Parley")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Scrum Pro")).toBeTruthy());
     await new Promise((r) => setTimeout(r, 50));
     expect(listCalls()).toHaveLength(0);
-    expect(screen.queryByText(/couldn't load your spaces/i)).toBeNull();
+    expect(screen.queryByText(/couldn't load your workspaces/i)).toBeNull();
   });
 
-  it("points a link guest back to their room instead of the space list", async () => {
+  it("points a link guest back to their room instead of the workspace list", async () => {
     renderApp(<Landing />);
 
-    const back = await screen.findByRole("link", { name: /back to your room/i });
+    const back = await screen.findByRole("link", { name: /back to your session/i });
     expect(back.getAttribute("href")).toBe("/session/room-session-1");
-    expect(screen.queryByRole("list", { name: /your spaces/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /open a space|create a space/i })).toBeNull();
+    expect(screen.queryByRole("list", { name: /your workspaces/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /create workspace|create workspace/i })).toBeNull();
   });
 
-  it("does not attempt to create a space as a link guest", async () => {
+  it("does not attempt to create workspace as a link guest", async () => {
     renderApp(<Landing />);
 
-    await waitFor(() => expect(screen.getByText("Parley")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Scrum Pro")).toBeTruthy());
     await new Promise((r) => setTimeout(r, 50));
     expect(spaceCalls()).toHaveLength(0);
   });
@@ -772,7 +772,7 @@ describe("Landing, signed out on an OIDC server", () => {
     signedIn = false;
   });
 
-  it("offers a way in without first making up a space name", async () => {
+  it("offers a way in without first making up a workspace name", async () => {
     renderApp(<Landing />);
 
     const signin = await screen.findByRole("link", { name: /sign in/i });
@@ -814,7 +814,7 @@ describe("Landing, signed in on an OIDC server", () => {
     asGuest = true;
     renderApp(<Landing />);
 
-    await screen.findByRole("link", { name: /back to your room/i });
+    await screen.findByRole("link", { name: /back to your session/i });
     expect(screen.queryByRole("button", { name: /sign out/i })).toBeNull();
   });
 });
@@ -864,11 +864,11 @@ describe("Landing across orgs", () => {
     twoOrgs();
     renderApp(<Landing />);
 
-    const acme = within(await screen.findByRole("list", { name: "Your spaces in Acme" }));
+    const acme = within(await screen.findByRole("list", { name: "Your workspaces in Acme" }));
     expect(acme.getByRole("link", { name: /Platform Team/ }).getAttribute("href")).toBe(
       "/o/acme/s/platform-team",
     );
-    const globex = within(screen.getByRole("list", { name: "Your spaces in Globex" }));
+    const globex = within(screen.getByRole("list", { name: "Your workspaces in Globex" }));
     expect(globex.getByRole("link", { name: /Platform Team/ }).getAttribute("href")).toBe(
       "/o/globex/s/platform-team",
     );
@@ -880,8 +880,8 @@ describe("Landing across orgs", () => {
     ];
     renderApp(<Landing />);
 
-    await screen.findByRole("list", { name: /your spaces/i });
-    expect(screen.queryByRole("group", { name: "Show spaces from" })).toBeNull();
+    await screen.findByRole("list", { name: /your workspaces/i });
+    expect(screen.queryByRole("group", { name: "Show workspaces from" })).toBeNull();
   });
 
   it("narrows the list to the org the switcher names", async () => {
@@ -890,8 +890,8 @@ describe("Landing across orgs", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Globex" }));
 
-    expect(screen.getByRole("list", { name: "Your spaces in Globex" })).toBeTruthy();
-    expect(screen.queryByRole("list", { name: "Your spaces in Acme" })).toBeNull();
+    expect(screen.getByRole("list", { name: "Your workspaces in Globex" })).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Your workspaces in Acme" })).toBeNull();
   });
 
   // Every new control has to be reachable and operable without a pointer: a
@@ -910,7 +910,7 @@ describe("Landing across orgs", () => {
 
     await userEvent.keyboard("{Enter}");
     expect(globex.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.queryByRole("list", { name: "Your spaces in Acme" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Your workspaces in Acme" })).toBeNull();
   });
 
   // A signed-in account whose claims matched no org has nowhere to put a
@@ -990,7 +990,7 @@ describe("Landing across orgs", () => {
       twoOrgs();
       localStorage.setItem("parley:theme", theme);
       const { container } = renderApp(<Landing />);
-      await screen.findByRole("group", { name: "Show spaces from" });
+      await screen.findByRole("group", { name: "Show workspaces from" });
       await expectNoViolations(container);
     });
 
@@ -1058,13 +1058,13 @@ describe("Landing, coming back to the table", () => {
     expect(join.getAttribute("href")).toBe("/session/s1");
     // Two named from the roster; the third socket is a link guest the roster
     // does not carry, counted rather than dropped.
-    expect(within(join).getByText("Ben, Nina and 1 other at the table")).toBeTruthy();
+    expect(within(join).getByText("Ben, Nina and 1 other in session")).toBeTruthy();
     expect(open.queryByText("Monday")).toBeNull();
   });
 
   it("says the table is quiet when no round is open", async () => {
     renderApp(<Landing />);
-    expect(await screen.findByText(/No round open/)).toBeTruthy();
+    expect(await screen.findByText(/No active sessions/)).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Rounds open now" })).toBeNull();
   });
 
@@ -1095,7 +1095,7 @@ describe("Landing, coming back to the table", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Globex" }));
     expect((screen.getByLabelText("Org") as HTMLSelectElement).value).toBe("globex");
     await userEvent.type(screen.getByPlaceholderText(/Platform Team/), "Night Watch");
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(spaceCalls()).toContainEqual(["POST", "/api/spaces", { name: "Night Watch", org: "globex" }]),
@@ -1117,7 +1117,7 @@ describe("Landing, coming back to the table", () => {
     await userEvent.click(screen.getByRole("button", { name: "Globex" }));
     expect((screen.getByLabelText("Org") as HTMLSelectElement).value).toBe("acme");
     await userEvent.type(screen.getByPlaceholderText(/Platform Team/), "Night Watch");
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(spaceCalls()).toContainEqual(["POST", "/api/spaces", { name: "Night Watch", org: "acme" }]),
@@ -1153,14 +1153,14 @@ describe("Landing, coming back to the table", () => {
 
     await userEvent.selectOptions(await screen.findByLabelText("Org"), "globex");
     await userEvent.type(screen.getByPlaceholderText(/Platform Team/), "Night Watch");
-    await userEvent.click(screen.getByRole("button", { name: /create a space/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
 
     await waitFor(() =>
       expect(spaceCalls()).toContainEqual(["POST", "/api/spaces", { name: "Night Watch", org: "globex" }]),
     );
   });
 
-  it("finds a space by typing, and opens the only match on Enter", async () => {
+  it("finds a workspace by typing, and opens the only match on Enter", async () => {
     mySpaces = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf"].map((n) => ({
       slug: n.toLowerCase(),
       name: n,
@@ -1169,9 +1169,9 @@ describe("Landing, coming back to the table", () => {
     }));
     renderApp(<Landing />);
 
-    const find = await screen.findByRole("searchbox", { name: "Find a space" });
+    const find = await screen.findByRole("searchbox", { name: "Find a workspace" });
     await userEvent.type(find, "trot");
-    const list = within(screen.getByRole("list", { name: "Your spaces in Acme" }));
+    const list = within(screen.getByRole("list", { name: "Your workspaces in Acme" }));
     expect(list.getAllByRole("link").map((a) => a.textContent)).toEqual(["Foxtrot"]);
 
     await userEvent.keyboard("{Enter}");
@@ -1187,7 +1187,7 @@ describe("Landing, coming back to the table", () => {
     }));
     renderApp(<Landing />);
 
-    await userEvent.type(await screen.findByRole("searchbox", { name: "Find a space" }), "o{Enter}");
+    await userEvent.type(await screen.findByRole("searchbox", { name: "Find a workspace" }), "o{Enter}");
     expect(navigate).toHaveBeenCalledWith("/o/acme/s/bravo");
   });
 
@@ -1201,13 +1201,13 @@ describe("Landing, coming back to the table", () => {
     }));
     const { container } = renderApp(<Landing />);
 
-    const find = await screen.findByRole("searchbox", { name: "Find a space" });
+    const find = await screen.findByRole("searchbox", { name: "Find a workspace" });
     const main = within(container.querySelector("main")!);
     const status = main.getByRole("status");
     expect(status.textContent).toBe("");
     await userEvent.type(find, "zzz");
     expect(main.getByRole("status")).toBe(status);
-    expect(status.textContent).toMatch(/No space of yours matches/);
+    expect(status.textContent).toMatch(/No workspace of yours matches/);
   });
 
   it("names each org panel by its heading rather than a second copy of it", async () => {
@@ -1219,8 +1219,8 @@ describe("Landing, coming back to the table", () => {
 
   it("runs the form labels a size up from the shared 10px", async () => {
     renderApp(<Landing />);
-    await screen.findByRole("list", { name: /your spaces/i });
-    const label = screen.getByText("New space");
+    await screen.findByRole("list", { name: /your workspaces/i });
+    const label = screen.getByText("New workspace");
     expect(label.className).toContain("text-[11px]");
     expect(label.className).not.toContain("text-[10px]");
   });
@@ -1264,14 +1264,14 @@ describe("Landing, coming back to the table", () => {
 
   it("keeps the find box away from a list short enough to read at a glance", async () => {
     renderApp(<Landing />);
-    await screen.findByRole("list", { name: /your spaces/i });
+    await screen.findByRole("list", { name: /your workspaces/i });
     expect(screen.queryByRole("searchbox")).toBeNull();
   });
 
   // A screen reader used to hear "Platform TeamPASSCODE" as one word.
   it("names a locked space and its passcode as two words", async () => {
     renderApp(<Landing />);
-    const list = within(await screen.findByRole("list", { name: /your spaces/i }));
+    const list = within(await screen.findByRole("list", { name: /your workspaces/i }));
     expect(list.getByRole("link", { name: /^Platform Team\W+passcode$/i })).toBeTruthy();
   });
 
@@ -1300,7 +1300,7 @@ describe("Landing, coming back to the table", () => {
     listFails = true;
     renderApp(<Landing />);
 
-    await screen.findByText(/couldn't load your spaces/i);
+    await screen.findByText(/couldn't load your workspaces/i);
     await screen.findByRole("region", { name: "Acme" });
     expect(screen.queryByText(/Name a table/)).toBeNull();
     expect(screen.queryByText(/Self-hosted: one binary/)).toBeNull();
@@ -1315,7 +1315,7 @@ describe("Landing, coming back to the table", () => {
 
     const h1 = await screen.findByRole("heading", { level: 1 });
     expect(h1.className).toContain("[overflow-wrap:anywhere]");
-    const row = within(screen.getByRole("list", { name: /your spaces/i })).getByText(long);
+    const row = within(screen.getByRole("list", { name: /your workspaces/i })).getByText(long);
     expect(row.className).toContain("[overflow-wrap:anywhere]");
     expect(screen.getByRole("link", { name: `Go to ${long}` }).className).toContain("[overflow-wrap:anywhere]");
     expect(container.querySelector("main .grid")!.className).toContain("grid-cols-[minmax(0,1fr)]");
@@ -1326,7 +1326,7 @@ describe("Landing, coming back to the table", () => {
   it("puts the create form before the list in the reading order", async () => {
     renderApp(<Landing />);
 
-    const list = await screen.findByRole("list", { name: /your spaces/i });
+    const list = await screen.findByRole("list", { name: /your workspaces/i });
     const field = screen.getByPlaceholderText(/Platform Team/);
     expect(field.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -1340,8 +1340,8 @@ describe("Landing, coming back to the table", () => {
     ];
     renderApp(<Landing />);
 
-    const list = within(await screen.findByRole("list", { name: /your spaces/i }));
-    const busy = list.getByRole("link", { name: /^Platform Team, round open, 3 at the table\W+passcode$/ });
+    const list = within(await screen.findByRole("list", { name: /your workspaces/i }));
+    const busy = list.getByRole("link", { name: /^Platform Team, round open, 3 in session\W+passcode$/ });
     expect(busy.querySelector(".bg-card-back")).not.toBeNull();
     const empty = list.getByRole("link", { name: "Design Guild, round open" });
     expect(empty.querySelector(".border-dashed")).not.toBeNull();
@@ -1352,7 +1352,7 @@ describe("Landing, coming back to the table", () => {
 
   it("stops explaining invites once there are a few tables", async () => {
     renderApp(<Landing />);
-    await screen.findByRole("list", { name: /your spaces/i });
+    await screen.findByRole("list", { name: /your workspaces/i });
     expect(screen.queryByText(/That link is your invite/)).toBeNull();
   });
 
