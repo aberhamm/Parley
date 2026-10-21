@@ -13,6 +13,14 @@ import blockersDark from "../../../assets/blockers-roundup-dark.png";
 
 <VerifiedStamp source={["internal/standup/state.go", "internal/standup/routes.go", "internal/standup/commitments.go", "internal/standup/kudos.go", "web/src/pages/StandupRoom.tsx", "web/src/components/Commitments.tsx", "web/src/tokens.css", "web/src/lib/notifications.ts", "web/src/components/NotificationSoundButton.tsx", "web/src/components/AsyncDigest.tsx", "web/src/lib/kinds.ts", "internal/standup/schedule.go", "internal/standup/webhook.go", "internal/api/standup_webhook.go", "internal/standup/ics.go", "internal/api/ics.go", "internal/standup/mentions.go", "internal/api/standup_mentions.go", "internal/standup/away.go", "internal/standup/trend.go", "internal/store/standup_trend.go", "internal/store/sessions.go", "internal/session/registry.go", "internal/api/standup_away.go", "web/src/components/AwayDays.tsx", "web/src/components/StandupTrend.tsx", "web/src/pages/SpacePage.tsx", "web/src/components/StandupSchedulePanel.tsx", "internal/api/kudos.go", "web/src/components/Kudos.tsx"]} />
 
+## Starting a standup session
+
+In Scrum Pro, choose your team's **workspace**, then select **New Standup
+Session**. A workspace keeps members and history across meetings; a session is
+one meeting. The standup dialog opens with the right meeting type already
+selected. Use **New Planning Poker Session** instead when estimating stories.
+
+
 A standup session is three text fields per person — yesterday, today, blockers —
 and an order to speak in.
 
@@ -271,7 +279,7 @@ with `409`. Mentions work the other way round: they exist only in an async
 standup, and a sync one answers them with `409`. A signed-link guest answers like anybody else while its link is
 valid.
 
-An async standup can carry a published cutoff. In the **New session** dialog,
+An async standup can carry a published cutoff. In the **New Standup Session** dialog,
 choosing **Async** offers an optional **Cutoff**, entered in your own local
 time; left empty, the standup has none and stays open until it is ended. The dialog refuses a cutoff already in the past before it is ever sent —
 but that is the dialog's own courtesy, not a server rule: `closesAt` is
