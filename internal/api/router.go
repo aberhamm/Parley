@@ -658,7 +658,7 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 				r.Get("/plugins/panels", a.handleOrgPluginPanels)
 				r.Post("/spaces/{slug}/join", a.handleJoinSpace)
 				r.Post("/spaces/{slug}/seen", a.handleMarkSpaceSeen)
-				r.Post("/spaces/{slug}/passcode", a.handleSetPasscode)
+				r.With(a.requireSpaceOwner).Post("/spaces/{slug}/passcode", a.handleSetPasscode)
 				r.Post("/spaces/{slug}/sessions", a.handleCreateSession)
 			})
 

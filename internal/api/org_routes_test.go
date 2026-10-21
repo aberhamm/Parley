@@ -159,7 +159,6 @@ func TestEverySpaceLookupIsGated(t *testing.T) {
 	wantContextOrg := map[string]bool{
 		"handleMarkSpaceSeen": true,
 		"handleJoinSpace":     true,
-		"handleSetPasscode":   true,
 		"handleCreateSession": true,
 		"requireSpaceOwner":   true,
 		"requireSpaceMember":  true,

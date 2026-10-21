@@ -71,8 +71,8 @@ it answers even when the instance is otherwise unhealthy. Details:
 
 ## Security model, in one paragraph
 
-Parley's access boundary is a shared passcode per space. Any member can rotate
-or remove that code; inside a session, the facilitator alone creates, edits,
+Parley's access boundary is a shared passcode per space. Only a space owner can
+rotate or remove that code; inside a session, the facilitator alone creates, edits,
 reorders, selects, and deletes stories and controls the meeting, while ordinary
 members may vote or write their own standup entry. Passcodes are stored
 readable on purpose, so a database dump discloses them. Vote secrecy before a
@@ -132,11 +132,9 @@ These are documented, deliberate, and not bugs:
 
 - **Passcodes are readable in the database.** By design; a code is meant to be
   read off the space page and passed on.
-- **Any member can rotate or remove a space's passcode.** Spaces can have
-  several owners, and an org admin has custody of every space in their org
-  (management without access — see
-  <https://www.letsparley.io/security/organizations/>). Neither role gates the
-  passcode: any member may still rotate or remove it.
+- **Members can read and share a space's passcode.** Only space owners can
+  rotate it or remove it. Org administration alone does not grant that right;
+  an admin must also own the space.
 - **Story-queue control is facilitator-only.** Ordinary members retain voting
   and their own standup entries.
 - **Anonymous participation.** That is the default product.

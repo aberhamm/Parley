@@ -11,7 +11,7 @@ import spaceDark from "../../../assets/space-room-code-dark.png";
 import settingsLight from "../../../assets/space-settings-light.png";
 import settingsDark from "../../../assets/space-settings-dark.png";
 
-<VerifiedStamp source={["internal/api/spaces.go", "internal/api/passcode.go", "internal/api/authz.go", "web/src/pages/OrgDirectory.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/SpaceSettingsPage.tsx", "web/src/components/DecksPanel.tsx", "web/src/components/Kudos.tsx", "web/src/components/AppShell.tsx", "web/src/pages/Landing.tsx", "internal/store/sessions.go"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/passcode_owner_test.go", "internal/api/spaces.go", "internal/api/passcode.go", "internal/api/authz.go", "web/src/pages/OrgDirectory.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/SpaceSettingsPage.tsx", "web/src/components/DecksPanel.tsx", "web/src/components/Kudos.tsx", "web/src/components/AppShell.tsx", "web/src/pages/Landing.tsx", "internal/store/sessions.go"]} />
 
 A space is a team's room. It has a memorable URL — `/o/acme/s/platform-team` — a roster,
 and a history of every session run in it.
@@ -93,7 +93,7 @@ passcode, and **Copy invite**. Nothing on it changes the door. Minting a new
 code — which immediately retires the old one and drops everyone still holding
 it back to the gate — and opening the space entirely both live under
 **Access** on [the settings page](#space-settings), which is owner-only. The
-server itself still accepts either request from any member.
+server also requires space ownership for both requests.
 
 **Copy invite** puts one link on the clipboard, built from the address you are
 already on, with the passcode carried in the URL fragment:
@@ -271,6 +271,6 @@ has the whole of that argument, and what guests can and cannot do with one.
 <Capability rows={[
   { name: "Per-user or per-team access", status: "not-built", detail: "Put an SSO proxy in front, or turn on <a href='/security/authentication/'>OIDC</a> and keep spaces open only on a trusted network. Owners manage membership, but a passcode is still the only door." },
   { name: "Filtering history by date", status: "not-built", detail: "Sort by most recent and scroll; search matches titles." },
-  { name: "Roles beyond owner and member", status: "not-built", detail: "Ownership governs membership and the space itself — renaming and deleting the space and its sessions, and the settings page that holds those controls. It does not govern the door at the server: any member, owner or not, can still rotate the passcode or open the space through the API. Treat membership as trust, and see the <a href='/security/threat-model/'>threat model</a>." },
+  { name: "Roles beyond owner and member", status: "not-built", detail: "Ownership governs membership and the space itself — renaming and deleting the space and its sessions, and the settings page that holds those controls. Only owners can rotate the passcode or open the space, including through the API. Treat membership as trust, and see the <a href='/security/threat-model/'>threat model</a>." },
   { name: "Knock-to-join", status: "not-built", detail: "Share the code. Requesting entry from the door is on the roadmap." },
 ]} />

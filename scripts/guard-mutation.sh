@@ -614,6 +614,10 @@ mutate "bundle: Pack's total cap" 'TestPackEnforcesTheVerifyLimits' \
 
 target internal/api
 
+mutate "owner-only space passcode changes" \
+    'TestPasscodeChangesRequireSpaceOwner' \
+    router.go 'r.With(a.requireSpaceOwner).Post("/spaces/{slug}/passcode", a.handleSetPasscode)' 'r.With(a.requireSpaceMember).Post("/spaces/{slug}/passcode", a.handleSetPasscode)'
+
 mutate "the plugin frame's route-group carve-out" \
     'TestThePluginFrameIsNotDeniedByXFrameOptions' \
     router.go 'a.mountPluginFrame(root)

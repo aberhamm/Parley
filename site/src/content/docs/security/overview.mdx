@@ -7,7 +7,8 @@ description: What a passcode protects, what it does not, and what a database dum
 
 In `open` mode a space is guarded by a shared passcode, not by identity.
 Anyone holding the code can join, see the roster, vote, write their own standup
-entry, and change the passcode. Story mutations and meeting controls are
+entry, and share the passcode. Only space owners can rotate or remove it.
+Story mutations and meeting controls are
 facilitator-only. Joins are broadcast to the room, so lurking is visible.
 
 Open mode is trusted-network-only. For public reachability, keep spaces
@@ -54,8 +55,8 @@ Treat a database dump as disclosing the passcodes of every space — but not any
 member's identity. Session cookies are opaque random tokens stored hashed, so a
 backup contains no credentials that impersonate a person.
 
-Any member can mint a new code, retiring the old one, or open the space
-entirely.
+Only a space owner can mint a new code, retiring the old one, or open the space
+entirely. The API checks the current owner role on every request.
 
 :::note[The throttle depends on getting one setting right]
 Wrong-guess throttling keys on the client address, which means

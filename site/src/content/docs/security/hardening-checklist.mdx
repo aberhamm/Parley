@@ -6,7 +6,7 @@ description: The ordered list of things to get right before you expose Parley to
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import SpecTable from "../../../components/SpecTable.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/api/security.go", "internal/api/client_address.go", "internal/api/authz.go", "internal/api/me.go", "internal/poker/routes.go", "cmd/parley/main.go", "deploy/k8s/deployment.yaml", "deploy/charts/parley/templates/networkpolicy.yaml", ".github/workflows/release.yml", "internal/api/custody/store.go", "internal/api/secevent.go", "internal/db/migrations/0023_org_custody.sql"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/passcode_owner_test.go", "internal/api/security.go", "internal/api/client_address.go", "internal/api/authz.go", "internal/api/me.go", "internal/poker/routes.go", "cmd/parley/main.go", "deploy/k8s/deployment.yaml", "deploy/charts/parley/templates/networkpolicy.yaml", ".github/workflows/release.yml", "internal/api/custody/store.go", "internal/api/secevent.go", "internal/db/migrations/0023_org_custody.sql"]} />
 
 In order. The first three are the ones that actually bite.
 
@@ -130,8 +130,8 @@ are covered; `X-Frame-Options: DENY` covers framing. The one genuine loosening i
 
 ## 4. Decide what a passcode is worth to you
 
-A passcode gates a space; it is not identity, it is stored readable, and any
-member can rotate it or remove it — the owner role does not narrow that. See the
+A passcode gates a space; it is not identity and it is stored readable. Members
+can read and share it, but only space owners can rotate or remove it. See the
 [threat model](/security/threat-model/).
 
 Open mode is trusted-network-only. If the instance is publicly reachable, use a
@@ -227,8 +227,8 @@ successful hardened release. Releases v0.1.0 through v0.2.1 were not backfilled.
 
 - **There is no instance-wide operator account.** Space ownership is per space
   (a space can have several owners) and stops at that boundary: only an owner
-  may promote, demote, or remove a member, but any member may still change or
-  remove the passcode, and story mutations and session controls are
+  may promote, demote, or remove a member or change or remove the passcode.
+  Story mutations and session controls are
   facilitator-only. An org admin has **custody** of every space in their org —
   list, rename, archive, delete, narrow visibility, grant ownership, claim an
   abandoned room — without reading votes, standups or rosters. That is

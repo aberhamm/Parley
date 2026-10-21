@@ -95,9 +95,10 @@ func spaceFrom(ctx context.Context) store.Space {
 }
 
 // requireSpaceOwner resolves {slug} to a space and requires the caller to own
-// it. It guards membership management plus renaming and deleting the space
-// and its rooms. A non-member gets 404 rather than 403: whether a space exists is not
-// disclosed to anyone outside it, which is the same rule the roster follows.
+// it. It guards passcode changes, membership management, and renaming or
+// deleting the space and its rooms. A non-member gets 404 rather than 403:
+// whether a space exists is not disclosed to anyone outside it, which is the
+// same rule the roster follows.
 func (a *app) requireSpaceOwner(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p, ok := PrincipalFrom(r.Context())

@@ -497,35 +497,16 @@ func (a *app) handleJoinSpace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleSetPasscode rotates the passcode or opens the space. Any member can do
-// it: they can already read the current code and hand it to anyone.
+// handleSetPasscode rotates the passcode or opens the space. The route requires
+// current space ownership, matching the other access controls in settings.
 func (a *app) handleSetPasscode(w http.ResponseWriter, r *http.Request) {
-	p, _ := PrincipalFrom(r.Context())
+	sp := spaceFrom(r.Context())
 
 	var body struct {
 		Open bool `json:"open"`
 	}
 	if err := decodeOptional(w, r, &body); err != nil {
 		httprequest.WriteDecodeError(w, err, `{"error":"invalid JSON body"}`)
-		return
-	}
-
-	sp, err := a.spaces.BySlug(r.Context(), orgFrom(r.Context()).ID, chi.URLParam(r, "slug"))
-	if errors.Is(err, store.ErrNoSpace) {
-		http.Error(w, `{"error":"no such space"}`, http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, `{"error":"could not load space"}`, http.StatusInternalServerError)
-		return
-	}
-	member, err := a.spaces.IsMember(r.Context(), sp.ID, p.UserID)
-	if err != nil {
-		http.Error(w, `{"error":"could not load space"}`, http.StatusInternalServerError)
-		return
-	}
-	if !member {
-		http.Error(w, `{"error":"no such space"}`, http.StatusNotFound)
 		return
 	}
 

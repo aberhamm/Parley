@@ -6,7 +6,7 @@ description: What Parley emits, what it does not, and where to get the rest.
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp source={["cmd/parley/main.go", "internal/api/router.go", "internal/api/metrics.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/store/users.go", "internal/api/ics.go"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/passcode_owner_test.go", "cmd/parley/main.go", "internal/api/metrics.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/store/users.go", "internal/api/ics.go"]} />
 
 This is a short page, and honestly so.
 
@@ -122,8 +122,8 @@ for that table), and those same writes also emit this line.
 | `auth.signout` | `DELETE /api/me` |
 | `space.create` | A space is created |
 | `space.delete` | An owner deletes a space |
-| `space.passcode.rotate` | A member issues a new passcode |
-| `space.passcode.remove` | A member opens the space |
+| `space.passcode.rotate` | A space owner issues a new passcode |
+| `space.passcode.remove` | A space owner opens the space |
 | `space.member.add` | Someone joins a space |
 | `space.member.remove` | An owner removes a member |
 | `space.member.role` | An owner promotes or demotes a member |
