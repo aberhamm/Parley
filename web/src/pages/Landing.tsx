@@ -105,14 +105,14 @@ function DealAndReveal() {
   const flipBase = dealt + CARD_HOP_MS;
 
   return (
-    <div aria-hidden className="flex flex-col items-center gap-5">
-      <div className="flex items-end gap-1.5">
+    <div aria-hidden className="flex w-full max-w-[352px] flex-col items-center gap-5 px-1">
+      <div className="flex w-full items-end justify-center gap-1.5">
         {HERO_HAND.map((v, i) => {
           const rot = (i - (HERO_HAND.length - 1) / 2) * 1.6;
           return (
             <span
               key={i}
-              className="relative flex h-[90px] w-16 items-center justify-center rounded-card border border-line bg-surface font-mono text-ink shadow-rest"
+              className="relative flex aspect-[32/45] min-w-0 max-w-16 flex-1 items-center justify-center rounded-card border border-line bg-surface font-mono text-ink shadow-rest"
               style={
                 {
                   "--rot": `${rot.toFixed(1)}deg`,
