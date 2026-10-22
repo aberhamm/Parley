@@ -164,3 +164,7 @@ now that verification and public traffic have reached Hetzner.
 
 Evidence and screenshots are kept outside Git in the protected Studio
 migration directory. No application behavior or database schema changed.
+
+## Umami rollout, 22 October 2026
+
+The application with bounded page categories is source `43f181ec4ec8c4783e76bff4d7d71510c371956a`, Linux/amd64 image `sha256:d5f0eadbe5068590376c0893da89ce9d062b12bef2562b530cda630f61dad939`. The dedicated gateway serves `/a/script.js` and `/a/api/send`, strips app credentials and referrers, and forwards to `a.matthew.systems`. The previous image and configuration are retained on the host in `.umami-backup-20261022`. No schema, volume, tunnel or host ingress changes were made.
