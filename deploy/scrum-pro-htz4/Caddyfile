@@ -5,5 +5,25 @@
 :8080 {
   @insecure header X-Forwarded-Proto http
   redir @insecure https://scrum.matthew.systems{uri} 308
+  handle /a/script.js {
+    rewrite * /script.js?
+    reverse_proxy https://a.matthew.systems {
+      header_up -*
+      header_up Host a.matthew.systems
+      header_up User-Agent {http.request.header.User-Agent}
+    }
+  }
+  handle /a/api/send {
+    request_body {
+      max_size 16KB
+    }
+    rewrite * /api/send?
+    reverse_proxy https://a.matthew.systems {
+      header_up -*
+      header_up Host a.matthew.systems
+      header_up User-Agent {http.request.header.User-Agent}
+      header_up Content-Type application/json
+    }
+  }
   reverse_proxy public-app:8080
 }
