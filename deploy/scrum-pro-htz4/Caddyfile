@@ -1,0 +1,9 @@
+{
+  admin off
+  auto_https off
+}
+:8080 {
+  @insecure header X-Forwarded-Proto http
+  redir @insecure https://scrum.matthew.systems{uri} 308
+  reverse_proxy public-app:8080
+}
