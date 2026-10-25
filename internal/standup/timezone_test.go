@@ -68,7 +68,9 @@ func TestAScheduleInAZonePostgresCannotReadStopsNothing(t *testing.T) {
 	ctx := context.Background()
 	every := []int{0, 1, 2, 3, 4, 5, 6}
 	// Put does not validate: this is the row an older binary could have saved.
-	bad, badOwner := seedSchedule(t, pool, Schedule{Weekdays: every, OpenTime: "00:00", Timezone: "localtime", WindowMinutes: 60, Enabled: true})
+	// Local is accepted by Go on every platform but not by Postgres. Unlike
+	// localtime it does not depend on a host zoneinfo symlink.
+	bad, badOwner := seedSchedule(t, pool, Schedule{Weekdays: every, OpenTime: "00:00", Timezone: "Local", WindowMinutes: 60, Enabled: true})
 	var member string
 	if err := pool.QueryRow(ctx, "insert into users (name) values ('Member') returning id::text").Scan(&member); err != nil {
 		t.Fatal(err)
@@ -98,7 +100,7 @@ func TestAScheduleInAZonePostgresCannotReadStopsNothing(t *testing.T) {
 	// the zone's midnight, which is where the tick used to stop.
 	if _, err := pool.Exec(ctx,
 		"insert into standup_away (user_id, starts_on, ends_on, created_at) values ($1, $2::date, $2::date, '2026-01-01T00:00:00Z')",
-		member, day1.In(mustLoc(t, "localtime")).Format(time.DateOnly)); err != nil {
+		member, day1.In(mustLoc(t, "Local")).Format(time.DateOnly)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Tick(ctx, pool, day1.AddDate(0, 0, 1), 500); err != nil {
