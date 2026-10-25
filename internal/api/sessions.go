@@ -158,6 +158,9 @@ func (a *app) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !a.hostingAllowed(w, r, orgFrom(r.Context()).ID) {
+		return
+	}
 	var body struct {
 		Kind   string          `json:"kind"`
 		Title  string          `json:"title"`

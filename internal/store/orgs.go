@@ -159,6 +159,8 @@ func (o *Orgs) RoleOf(ctx context.Context, orgID, userID string) (string, error)
 // them. The role rides along so a client can offer the admin surface without a
 // second request per org.
 type OrgMembership struct {
+	CanHost bool `json:"canHost"`
+
 	Slug string `json:"slug"`
 	Name string `json:"name"`
 	Role string `json:"role"`
@@ -169,7 +171,7 @@ type OrgMembership struct {
 // nowhere, and the client shows it the dead-end rather than an empty switcher.
 func (o *Orgs) ForUser(ctx context.Context, userID string) ([]OrgMembership, error) {
 	rows, err := o.Pool.Query(ctx, `
-		select o.slug, o.name, m.role
+		select o.slug, o.name, m.role, exists(select 1 from hosting_grants h where h.org_id=o.id and h.user_id=m.user_id)
 		from org_members m join orgs o on o.id = m.org_id
 		where m.user_id = $1 and m.revoked_at is null
 		order by o.name`, userID)
@@ -180,7 +182,7 @@ func (o *Orgs) ForUser(ctx context.Context, userID string) ([]OrgMembership, err
 	orgs := []OrgMembership{}
 	for rows.Next() {
 		var m OrgMembership
-		if err := rows.Scan(&m.Slug, &m.Name, &m.Role); err != nil {
+		if err := rows.Scan(&m.Slug, &m.Name, &m.Role, &m.CanHost); err != nil {
 			return nil, fmt.Errorf("listing orgs: %w", err)
 		}
 		orgs = append(orgs, m)

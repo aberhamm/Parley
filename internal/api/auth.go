@@ -77,7 +77,7 @@ func (a *app) handleAuthConfig(w http.ResponseWriter, _ *http.Request) {
 	if providers == nil {
 		providers = []EmbedProvider{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"mode": a.authMode, "embedProviders": providers})
+	writeJSON(w, http.StatusOK, map[string]any{"mode": a.authMode, "embedProviders": providers, "inviteOnly": a.inviteOnly})
 }
 
 func (a *app) handleAuthLogin(w http.ResponseWriter, r *http.Request) {

@@ -45,7 +45,7 @@ vi.mock("../lib/api", async () => {
         if (asGuest) return guestMe;
         return signedIn ? me : null;
       }
-      if (path === "/api/auth") return { mode: authMode };
+      if (path === "/api/auth") return { mode: authMode, inviteOnly };
       if (path === "/api/orgs") return myOrgs;
       if (path === "/api/spaces" && method === "GET") {
         if (holdList) await holdList;
@@ -67,6 +67,7 @@ vi.mock("../lib/api", async () => {
   };
 });
 
+let inviteOnly = false;
 let signedIn = true;
 let asGuest = false;
 let authMode: "open" | "oidc" = "oidc";
@@ -85,7 +86,7 @@ let spaceDetail: unknown = { slug: "platform-team", name: "Platform Team", prote
 let mySpaces: { slug: string; name: string; orgSlug: string; protected: boolean; open?: number; here?: number; kudoWaiting?: boolean }[] = [];
 // The orgs the caller belongs to. One by default, which is what a single-tenant
 // instance looks like: the switcher stays out of the way and the list is flat.
-let myOrgs: { slug: string; name: string; role: "admin" | "member" }[] = [
+let myOrgs: { slug: string; name: string; role: "admin" | "member"; canHost?: boolean }[] = [
   { slug: "acme", name: "Acme", role: "member" },
 ];
 const createdSpace = {
@@ -112,6 +113,7 @@ const listCalls = () =>
   );
 
 beforeEach(() => {
+  inviteOnly = false;
   signedIn = true;
   asGuest = false;
   authMode = "oidc";
@@ -1372,4 +1374,26 @@ describe("Landing, coming back to the table", () => {
       await expectNoViolations(container);
     });
   }
+});
+
+
+it("requires an invitation instead of offering public workspace creation", async () => {
+  inviteOnly = true; signedIn = false; authMode = "open"; mySpaces = [];
+  renderApp(<Landing />);
+  await screen.findByRole("heading", {name: "Your team starts with an invitation."});
+  expect(screen.queryByRole("button", {name: /create workspace/i})).toBeNull();
+  expect(screen.queryByPlaceholderText(/Platform Team/)).toBeNull();
+});
+it("lets a participant return to a workspace without offering creation", async () => {
+  inviteOnly = true; mySpaces = [{slug:"platform-team",name:"Platform Team",orgSlug:"acme",protected:true}]; myOrgs = [{slug:"acme",name:"Acme",role:"member",canHost:false}];
+  renderApp(<Landing />);
+  await screen.findByRole("link", {name:/Go to Platform Team/});
+  expect(screen.queryByRole("button", {name:/create workspace/i})).toBeNull();
+});
+it("offers creation in the invited host organization only", async () => {
+  inviteOnly = true; myOrgs = [{slug:"acme",name:"Acme",role:"member",canHost:false},{slug:"host-org",name:"Host org",role:"member",canHost:true}];
+  renderApp(<Landing />);
+  await screen.findByRole("button", {name:/create workspace/i});
+  const select = screen.getByLabelText("Org") as HTMLSelectElement;
+  expect(Array.from(select.options).map(o=>o.value)).toEqual(["host-org"]);
 });

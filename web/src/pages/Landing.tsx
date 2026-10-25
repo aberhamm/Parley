@@ -372,6 +372,9 @@ export function Landing() {
     retry: false,
   });
   const orgs = myOrgs.data ?? [];
+  const inviteOnly = mode.data?.inviteOnly === true;
+  const hostingOrgs = orgs.filter(o => !inviteOnly || o.canHost);
+  const canCreate = !inviteOnly || hostingOrgs.length > 0;
   const noOrg = fullAccount && myOrgs.isSuccess && orgs.length === 0;
   // Which org the list is showing. Null is "all of them", which is what a
   // single-org instance always shows — there is nothing to switch between.
@@ -400,7 +403,7 @@ export function Landing() {
   // The org a create is sent to. Omitted when the page cannot say — the
   // server then uses the instance's default org, which is what it always did.
   const soleOrg = orgs.length === 1 ? orgs[0].slug : undefined;
-  const targetOrg = createOrg || orgFilter || orgs[0]?.slug;
+  const targetOrg = hostingOrgs.find(o=>o.slug === (createOrg || orgFilter))?.slug || hostingOrgs[0]?.slug;
 
   // Both the resume effect and the gate can finish the same pending name, and
   // either can win the race. One shared latch makes the loser a no-op while a
@@ -571,7 +574,7 @@ export function Landing() {
           </div>
           {!settling && stranger && !guestRoomId && (
             <h1 className="max-w-[20ch] text-balance font-display text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.02em]">
-              Plan your sprint. Keep your team in sync.
+              {canCreate ? "Plan your sprint. Keep your team in sync." : "Your team starts with an invitation."}
             </h1>
           )}
         </div>
@@ -593,7 +596,7 @@ export function Landing() {
             and their list should not sit below an advertisement for it. */}
         {!settling && stranger && !guestRoomId && (
           <p className="max-w-[48ch] text-pretty text-ink-soft">
-            Create a team workspace for planning poker and daily standups.
+            {canCreate ? "Create a team workspace for planning poker and daily standups." : "Open the invitation link your host shared to join your workspace."}
           </p>
         )}
 
@@ -706,7 +709,7 @@ export function Landing() {
               )}
 
               <div className={wide ? "flex flex-col gap-4 lg:col-start-1 lg:row-start-2" : "contents"}>
-                {!settling && (
+                {!settling && canCreate && (
                   <form
                     onSubmit={submit}
                     className={
@@ -745,7 +748,7 @@ export function Landing() {
                           value={targetOrg}
                           onChange={(e) => setCreateOrg(e.target.value)}
                         >
-                          {orgs.map((o) => (
+                          {hostingOrgs.map((o) => (
                             <option key={o.slug} value={o.slug}>
                               {o.name}
                             </option>
@@ -763,7 +766,7 @@ export function Landing() {
                   </form>
                 )}
 
-                {!settling && stranger && (
+                {!settling && stranger && canCreate && (
                   <p className="max-w-xl text-sm leading-relaxed text-ink-soft">
                     A workspace keeps your team, sessions, and history together.
                   </p>

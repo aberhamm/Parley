@@ -17,7 +17,7 @@ import { listenForNotificationChanges } from "../lib/notificationSettings";
 export function useAuthMode() {
   return useQuery({
     queryKey: ["auth-mode"],
-    queryFn: () => api<{ mode: "open" | "oidc" }>("GET", "/api/auth"),
+    queryFn: () => api<{ mode: "open" | "oidc"; inviteOnly?: boolean }>("GET", "/api/auth"),
     staleTime: Infinity,
     retry: false,
   });

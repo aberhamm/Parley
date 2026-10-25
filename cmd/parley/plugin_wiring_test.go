@@ -409,6 +409,7 @@ func TestEveryOptionMainCanSetIsActuallySet(t *testing.T) {
 			RedirectURL:  "https://example.test/auth/callback",
 			Scopes:       []string{"profile"},
 		},
+		InviteOnly:        true,
 		BootstrapAdmin:    api.BootstrapAdmin{Issuer: "https://idp.example.test", Subject: "admin"},
 		TrustProxy:        true,
 		TrustedProxyCIDRs: []netip.Prefix{prefix},
@@ -474,6 +475,7 @@ func TestBootLeavesALegacySecretInItsLegacyForm(t *testing.T) {
 }
 
 func TestMainsOptionsEnableEncryptedPublicationStorage(t *testing.T) {
+	t.Setenv("INVITE_ONLY", "false") // This fixture exercises publication storage, not invite admission.
 	pool := migratedPool(t)
 	base, _ := url.Parse("http://example.test")
 	t.Setenv("PLUGIN_SECRET_KEY", base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901")))

@@ -14,6 +14,7 @@ import { useAuthMode, useMe, NameGate } from "../components/NameGate";
 import { isFullAccount } from "../lib/links";
 import { openSessionLapsed } from "../lib/sessionMemory";
 import { AppShell, Logo } from "../components/AppShell";
+import { WorkspaceInvitations } from "../components/WorkspaceInvitations";
 import { PluginChrome } from "../components/PluginChrome";
 import { KindChip } from "../components/KindChip";
 import { Avatar } from "../components/Avatar";
@@ -399,6 +400,17 @@ export function SpacePage() {
 
   // Members-only spaces don't leak their contents — the gate says so plainly
   // and points at the one way in.
+  if (!isMember && authMode.data?.inviteOnly) {
+    return (
+      <main className="mx-auto max-w-xl px-5 py-12">
+        <h1 className="text-3xl font-bold">Invitation required</h1>
+        <p className="mt-4 text-ink-soft">Ask a host for an invitation to this workspace. Open the complete link they share with you.</p>
+        {authMode.data.mode === "oidc" && !isFullAccount(me.data) && (
+          <p className="mt-4 text-ink-soft">Already a member? <a className={buttonPrimary} href={`/auth/login?next=${encodeURIComponent(location.pathname + location.search)}`}>Sign in</a></p>
+        )}
+      </main>
+    );
+  }
   if (!isMember) {
     return (
       <>
@@ -485,7 +497,8 @@ export function SpacePage() {
   ];
   // Hiding a control is a courtesy; the server enforces the same rule and
   // answers 403 to a member who reaches the route another way.
-  const canManage = (sp.members ?? []).find((m) => m.userId === me.data?.id)?.role === "owner";
+  const canHost = sp.canHost !== false;
+  const canManage = canHost && (sp.members ?? []).find((m) => m.userId === me.data?.id)?.role === "owner";
 
   return (
     <>
@@ -517,7 +530,7 @@ export function SpacePage() {
           width. */}
       <div className="mx-auto max-w-[760px] py-9 pl-[max(1.5rem,var(--safe-left))] pr-[max(1.5rem,var(--safe-right))] sm:pl-[max(2rem,var(--safe-left))] sm:pr-[max(2rem,var(--safe-right))] xl:grid xl:max-w-[1180px] xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start xl:gap-10">
         <div className="min-w-0">
-        <InviteStrip org={org} slug={sp.slug} passcode={sp.passcode ?? ""} />
+        {authMode.data?.inviteOnly ? <div className="mb-5 flex items-center justify-between border-b border-line pb-3"><p className="text-sm text-ink-soft">{canHost ? "Host access" : "Participant access"} · Invitation required</p>{canHost && canManage && <WorkspaceInvitations org={org} slug={sp.slug}/>}</div> : <InviteStrip org={org} slug={sp.slug} passcode={sp.passcode ?? ""} />}
 
         <div className="mb-6 rounded-panel border border-line bg-surface p-5">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-accent">Workspace</p>
@@ -530,12 +543,12 @@ export function SpacePage() {
             Sessions
           </h2>
           <div className="flex flex-wrap gap-2">
-            {offered.filter((k) => k.id === "poker" || k.id === "standup").map((k) => (
+            {canHost && offered.filter((k) => k.id === "poker" || k.id === "standup").map((k) => (
               <button key={k.id} className={k.id === "poker" ? buttonPrimary : buttonQuiet} onClick={() => setCreating(k.id)}>
                 {k.id === "poker" ? "New Planning Poker Session" : "New Standup Session"}
               </button>
             ))}
-            {offered.some((k) => k.id !== "poker" && k.id !== "standup") && (
+            {canHost && offered.some((k) => k.id !== "poker" && k.id !== "standup") && (
               <button className={buttonQuiet} onClick={() => setCreating("other")}>Other session types</button>
             )}
           </div>

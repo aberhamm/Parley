@@ -148,6 +148,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: INVITE_ONLY
+              value: {{ .Values.auth.inviteOnly | quote }}
             - name: AUTH_MODE
               value: {{ .Values.auth.mode | quote }}
             {{- if eq .Values.auth.mode "oidc" }}

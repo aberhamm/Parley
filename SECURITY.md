@@ -71,7 +71,13 @@ it answers even when the instance is otherwise unhealthy. Details:
 
 ## Security model, in one paragraph
 
-Parley's access boundary is a shared passcode per space. Only a space owner can
+Scrum Pro defaults to invitation-only hosting and workspace admission. An
+organization-scoped host grant is required for workspace/session creation;
+participant invitations grant workspace membership. Legacy shared-passcode
+admission is available only with INVITE_ONLY=false. See
+[host invitation security](docs/security/host-invitations.md).
+
+In legacy mode, the access boundary is a shared passcode per space. Only a space owner can
 rotate or remove that code; inside a session, the facilitator alone creates, edits,
 reorders, selects, and deletes stories and controls the meeting, while ordinary
 members may vote or write their own standup entry. Passcodes are stored

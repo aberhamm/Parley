@@ -111,6 +111,8 @@ baseURL: https://parley.example.com
 #   open  — anyone with the link picks a name and sits down.
 #   oidc  — sign-in through your identity provider.
 auth:
+  # INVITE_ONLY: host invitations required for workspace/session creation.
+  inviteOnly: true
   mode: open
   oidc:
     # OIDC_ISSUER — the provider's base address, the one serving

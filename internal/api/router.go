@@ -32,6 +32,8 @@ import (
 )
 
 type app struct {
+	inviteOnly bool
+
 	// casts orders each room's broadcasts; see broadcastLocal.
 	casts     roomCasts
 	pool      *pgxpool.Pool
@@ -111,6 +113,8 @@ type app struct {
 }
 
 type Options struct {
+	InviteOnly bool
+
 	SecureCookies bool
 	AllowedOrigin string
 	// PublicURL is the instance's absolute address, set only when the
@@ -292,6 +296,7 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 		sessionIdleTTL: opts.SessionIdleTTL,
 		sessionMaxTTL:  opts.SessionMaxTTL,
 		authMode:       mode,
+		inviteOnly:     opts.InviteOnly,
 		version:        cmp.Or(opts.Version, "dev"),
 
 		passcodeAttempts: newAttemptLimiter(pool),
@@ -573,6 +578,8 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 		// one /api route that neither requires an identity nor rejects a link
 		// one. Everything it mints is scoped to a single room.
 		r.Post("/links/redeem", a.handleRedeemLink)
+		r.With(rejectLinkPrincipal).Post("/invitations/preview", a.handlePreviewInvitation)
+		r.With(RequireUser).Post("/invitations/accept", a.handleAcceptInvitation)
 
 		// The identity routes sit outside RequireUser — they are where an
 		// identity comes from — so link guests are turned away here
@@ -659,6 +666,9 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 				r.Post("/spaces/{slug}/join", a.handleJoinSpace)
 				r.Post("/spaces/{slug}/seen", a.handleMarkSpaceSeen)
 				r.With(a.requireSpaceOwner).Post("/spaces/{slug}/passcode", a.handleSetPasscode)
+				r.With(a.requireSpaceOwner).Post("/spaces/{slug}/invitations", a.handleMintInvitation)
+				r.With(a.requireSpaceOwner).Get("/spaces/{slug}/invitations", a.handleListInvitations)
+				r.With(a.requireSpaceOwner).Delete("/spaces/{slug}/invitations/{invitationId}", a.handleRevokeInvitation)
 				r.Post("/spaces/{slug}/sessions", a.handleCreateSession)
 			})
 

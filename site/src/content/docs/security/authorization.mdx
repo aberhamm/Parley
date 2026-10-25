@@ -6,9 +6,9 @@ description: Membership, facilitator rights, and what the server checks on every
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/passcode_owner_test.go", "internal/api/authz.go", "internal/api/principal.go", "internal/store/spaces.go", "internal/store/orgs.go", "internal/poker/routes.go", "internal/standup/routes.go", "internal/store/sessions.go", "internal/store/links.go", "internal/api/custody/store.go", "internal/api/secevent.go", "internal/db/migrations/0023_org_custody.sql", "internal/api/ics.go", "internal/standup/state.go", "internal/session/registry.go", "web/src/components/AsyncDigest.tsx"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/invitations.go", "internal/store/invitations.go", "internal/db/migrations/0060_host_invitations.sql", "internal/api/passcode_owner_test.go", "internal/api/authz.go", "internal/api/principal.go", "internal/store/spaces.go", "internal/store/orgs.go", "internal/poker/routes.go", "internal/standup/routes.go", "internal/store/sessions.go", "internal/store/links.go", "internal/api/custody/store.go", "internal/api/secevent.go", "internal/db/migrations/0023_org_custody.sql", "internal/api/ics.go", "internal/standup/state.go", "internal/session/registry.go", "web/src/components/AsyncDigest.tsx"]} />
 
-Parley has five authorization concepts and no more: **you are a member of the
+Parley combines organization-scoped hosting permission with these authorization concepts: **you are a member of the
 org**, **you are a member of the space**, **you own the space**, **you are the
 facilitator of this session**, and **you hold a signed link to this one room**.
 
@@ -392,3 +392,26 @@ toggle, not a permission an administrator grants.
   { name: "Spectating as a link guest", status: "not-built", detail: "Spectator mode is a flag on a space membership, and a link guest has none, so the toggle is refused rather than silently accepted." },
   { name: "Upgrading a link identity into an account", status: "not-built", detail: "A link guest cannot rename itself or sign in. When the link expires the identity stops working; what they contributed stays." },
 ]} />
+
+## Host and participant invitations
+
+Scrum Pro defaults to `INVITE_ONLY=true`. An active hosting grant in the target
+organization is required for workspace/session creation. Invitation management
+requires that grant and current ownership of the target workspace. Organization
+administration alone does not grant hosting. A host invitation confers hosting
+in its organization and ownership of the invited workspace; a participant
+invitation grants only membership there. Hosts may delegate hosting by choosing
+Host; Participant is selected by default.
+
+Links use random 256-bit tokens stored as hashes, expire after seven days and
+are single-use. Pending links can be revoked. Acceptance checks the issuer's
+current role and preserves org revocation tombstones. Old passcodes and open
+workspace links cannot bypass invitation admission. Existing session guest
+links still grant only their bound room, and embedded credentials cannot
+manage or accept workspace invitations. Operators bootstrap the first host
+with `-create-host-invite`; public visitors cannot claim that role.
+
+Browser-cookie identity remains the open-mode identity mechanism. Moving to a
+new browser does not recover that identity or hosting grant; configure OIDC
+when lasting cross-device sign-in is needed. Restoring backups requires
+reconciling hosting grants and invitation revocations/use as well as sessions.

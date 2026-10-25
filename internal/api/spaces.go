@@ -216,6 +216,9 @@ func (a *app) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if !a.hostingAllowed(w, r, org.ID) {
+		return
+	}
 	sp, err := a.spaces.Create(r.Context(), org.ID, name, slug, passcode, p.UserID, visibility, a.limits.SpacesPerIdentity)
 	if errors.Is(err, store.ErrSlugTaken) {
 		http.Error(w, `{"error":"that space name is taken — pick another"}`, http.StatusConflict)
@@ -381,6 +384,14 @@ func (a *app) handleGetSpace(w http.ResponseWriter, r *http.Request) {
 				"slug": sp.Slug, "name": sp.Name, "members": views, "sessions": sessionViews, "kinds": kinds, "kindOptions": kindOpts,
 				"protected": sp.Passcode != "", "visibility": sp.Visibility,
 			}
+			if a.inviteOnly {
+				canHost, err := a.invitationStore().CanHost(r.Context(), org.ID, p.UserID)
+				if err != nil {
+					http.Error(w, `{"error":"could not check hosting access"}`, http.StatusInternalServerError)
+					return
+				}
+				body["canHost"] = canHost
+			}
 			if !p.Embedded {
 				body["passcode"] = sp.Passcode
 			}
@@ -455,6 +466,10 @@ func (a *app) handleJoinSpace(w http.ResponseWriter, r *http.Request) {
 	member, err := a.spaces.IsMember(r.Context(), sp.ID, p.UserID)
 	if err != nil {
 		http.Error(w, `{"error":"could not load space"}`, http.StatusInternalServerError)
+		return
+	}
+	if a.inviteOnly && !member {
+		http.Error(w, `{"error":"an invitation is required to join this workspace"}`, http.StatusForbidden)
 		return
 	}
 	if sp.Passcode != "" && !member {

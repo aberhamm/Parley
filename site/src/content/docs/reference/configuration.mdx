@@ -6,11 +6,12 @@ description: Every environment variable, its default, and whether a bad value st
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import EnvVar from "../../../components/EnvVar.astro";
 
-<VerifiedStamp version="unreleased" source={["cmd/parley/main.go", "web/embed.go", "internal/store/kudos.go", "cmd/parley/configfile.go", "internal/db/tls.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/api/standup_webhook.go", "internal/api/embed.go", "internal/plugin/secrets.go", "internal/plugin/bundles.go", "internal/plugin/runtime.go", "internal/api/pluginframe.go"]} />
+<VerifiedStamp version="unreleased" source={["cmd/parley/main.go", "internal/api/invitations.go", "web/embed.go", "internal/store/kudos.go", "cmd/parley/configfile.go", "internal/db/tls.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/api/standup_webhook.go", "internal/api/embed.go", "internal/plugin/secrets.go", "internal/plugin/bundles.go", "internal/plugin/runtime.go", "internal/api/pluginframe.go"]} />
 
 Configuration is environment variables, optionally backed by a file that fills
-the gaps (`PARLEY_CONFIG_FILE`, below). There is no command-line flag other than
-`-healthcheck`, which the container image uses for its own `HEALTHCHECK`.
+the gaps (`PARLEY_CONFIG_FILE`, below). The `-healthcheck` flag probes readiness. Operators can issue a first host
+invitation with `-create-host-invite` and choose its organization using
+`-invite-org <slug>`; stdout contains a private single-use URL.
 
 Parley is deliberately **fail-fast**: most variables stop the process on a bad
 value rather than falling back to a default, and every fatal exit prints a plain
@@ -607,3 +608,20 @@ Worth stating, because they are natural guesses:
 
 Read by the test suite only, never by the binary. It points at a throwaway
 database; the tests migrate and truncate it.
+
+## Invitations and hosting
+
+<EnvVar name="INVITE_ONLY" default="true" fatal>
+Require an organization-scoped host invitation before creating workspaces or
+sessions. Participants join an invited workspace and participate; hosts may
+create workspaces/sessions and invite others. Only workspace owners who are
+hosts may manage its invitations. Participant is the default invitation role.
+Invalid booleans stop startup. Set false only to deliberately retain legacy
+open hosting and shared-passcode entry.
+</EnvVar>
+
+There is no public first-host claim. Run `parley -create-host-invite` with the
+normal database/BASE_URL configuration and keep its printed link private.
+Invitations expire in seven days and work once. Existing accounts/owners are
+not automatically promoted. Issue host invitations for trusted owners before
+enabling the new policy in an existing deployment.

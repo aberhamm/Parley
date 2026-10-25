@@ -2568,3 +2568,15 @@ describe("SpacePage sidebar: show all sessions", () => {
     }
   });
 });
+it("offers OIDC sign-in to returning members at an invitation-only workspace", async () => {
+ vi.mocked(api).mockImplementation(async (_method, path) => {
+  if (path === "/api/auth") return {mode:"oidc",inviteOnly:true};
+  if (path === "/api/me") throw new ApiError(401,"unauthorized");
+  if (path === "/api/orgs/acme/spaces/platform-team") return {slug:space.slug,name:space.name,protected:space.protected};
+  throw new Error("unexpected api call: "+path);
+ });
+ history.replaceState(null,"","/o/acme/s/platform-team");
+ renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+ const link = await screen.findByRole("link",{name:"Sign in"});
+ expect(link.getAttribute("href")).toBe("/auth/login?next=%2Fo%2Facme%2Fs%2Fplatform-team");
+});

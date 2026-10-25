@@ -11,7 +11,21 @@ import spaceDark from "../../../assets/space-room-code-dark.png";
 import settingsLight from "../../../assets/space-settings-light.png";
 import settingsDark from "../../../assets/space-settings-dark.png";
 
-<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/passcode_owner_test.go", "internal/api/spaces.go", "internal/api/passcode.go", "internal/api/authz.go", "web/src/pages/OrgDirectory.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/SpaceSettingsPage.tsx", "web/src/components/DecksPanel.tsx", "web/src/components/Kudos.tsx", "web/src/components/AppShell.tsx", "web/src/pages/Landing.tsx", "internal/store/sessions.go"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/invitations.go", "web/src/components/WorkspaceInvitations.tsx", "web/src/pages/InvitationPage.tsx", "internal/api/passcode_owner_test.go", "internal/api/spaces.go", "internal/api/passcode.go", "internal/api/authz.go", "web/src/pages/OrgDirectory.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/SpaceSettingsPage.tsx", "web/src/components/DecksPanel.tsx", "web/src/components/Kudos.tsx", "web/src/components/AppShell.tsx", "web/src/pages/Landing.tsx", "internal/store/sessions.go"]} />
+
+## Invitation-only access in Scrum Pro
+
+With the default `INVITE_ONLY=true`, a host who owns a workspace uses **Invite
+someone** to create a participant or host invitation. Participant is selected
+by default. Participants join this workspace and take part in sessions. Hosts
+also manage it, create workspaces/sessions in the organization and invite others.
+Each link works once, expires in seven days and can be revoked before use.
+
+Existing passcodes/open links do not admit new workspace members in this mode.
+The passcode-based flow below applies when an operator explicitly chooses
+`INVITE_ONLY=false`. Existing members and session-bound guest participation
+remain supported. Hosts need an operator-issued first invitation when setting
+up the instance; public visitors cannot create workspaces by entering a name.
 
 A space is a team's room. It has a memorable URL — `/o/acme/s/platform-team` — a roster,
 and a history of every session run in it.

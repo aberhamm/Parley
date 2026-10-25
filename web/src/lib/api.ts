@@ -154,6 +154,7 @@ export type Kudo = {
 
 export type SpaceRole = "owner" | "member";
 export type SpaceView = {
+  canHost?: boolean;
   slug: string;
   name: string;
   /** Whether joining needs the passcode. Visible to strangers so the gate knows. */
@@ -233,6 +234,7 @@ export type OrgSpacePage = {
 };
 /** One org the caller belongs to, as the switcher lists them. */
 export type OrgMembership = {
+  canHost?: boolean;
   slug: string;
   name: string;
   role: "admin" | "member";

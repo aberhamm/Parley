@@ -32,6 +32,8 @@ import (
 var version = "dev"
 
 type config struct {
+	InviteOnly bool
+
 	DatabaseURL string
 	// DBSSLMode is the sslmode DATABASE_URL resolves to, echoed on the boot
 	// line so an operator can confirm the database session is encrypted.
@@ -163,6 +165,11 @@ func loadConfig() (config, error) {
 		return cfg, fmt.Errorf("LOG_LEVEL %q is not one of debug, info, warn, error", lv)
 	}
 
+	inviteOnly, err := strconv.ParseBool(envOr("INVITE_ONLY", "true"))
+	if err != nil {
+		return cfg, fmt.Errorf("INVITE_ONLY must be true or false")
+	}
+	cfg.InviteOnly = inviteOnly
 	// Only meaningful behind a proxy that sets the header itself. Exposed
 	// directly, trusting it lets a caller pick their own address and walk
 	// straight through the room-code throttle.
@@ -369,6 +376,8 @@ func main() {
 	}
 	healthcheck := flag.Bool("healthcheck", false, "probe the running server's /readyz and exit 0 if ready")
 	showVersion := flag.Bool("version", false, "print the build version and exit")
+	createHostInvite := flag.Bool("create-host-invite", false, "issue a single-use first-host invitation; keep the printed URL private")
+	inviteOrg := flag.String("invite-org", "default", "organization for the operator-issued host invitation")
 	flag.Parse()
 
 	if *showVersion {
@@ -386,7 +395,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	logSink := os.Stdout
+	if *createHostInvite {
+		logSink = os.Stderr
+	}
+	log := slog.New(slog.NewJSONHandler(logSink, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	slog.SetDefault(log)
 
 	secureCookies := cfg.BaseURL.Scheme == "https"
@@ -418,6 +431,20 @@ func main() {
 	if err := db.Migrate(ctx, pool, log, db.MigrationsFS); err != nil {
 		log.Error("FATAL: database migration failed", "error", err)
 		os.Exit(1)
+	}
+	if *createHostInvite {
+		org, err := (&store.Orgs{Pool: pool}).BySlug(ctx, *inviteOrg)
+		if err != nil {
+			log.Error("could not find invitation org")
+			os.Exit(1)
+		}
+		_, token, err := (&store.Invitations{Pool: pool}).Mint(ctx, org.ID, nil, nil, "host")
+		if err != nil {
+			log.Error("could not issue host invitation")
+			os.Exit(1)
+		}
+		fmt.Println(strings.TrimSuffix(cfg.BaseURL.String(), "/") + "/invite#t=" + token)
+		return
 	}
 
 	// Bootstrap, after the migration that creates the default org and before
@@ -539,6 +566,7 @@ func apiOptions(ctx context.Context, cfg config, secureCookies bool, plugins *pl
 		SecureCookies:     secureCookies,
 		AllowedOrigin:     cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host,
 		AuthMode:          cfg.AuthMode,
+		InviteOnly:        cfg.InviteOnly,
 		TrustProxyHeaders: cfg.TrustProxy,
 		Version:           version,
 		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,

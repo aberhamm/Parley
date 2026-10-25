@@ -128,6 +128,9 @@ func (a *app) requireSpaceOwner(next http.Handler) http.Handler {
 			http.Error(w, `{"error":"only a space owner can do that"}`, http.StatusForbidden)
 			return
 		}
+		if !a.hostingAllowed(w, r, orgFrom(r.Context()).ID) {
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), spaceKey{}, sp)))
 	})
 }

@@ -9,6 +9,7 @@ import { Landing } from "./pages/Landing";
 // so the page a returning account opens every morning paid for the poker
 // table, the standup, the plugin admin and the Meet add-on before it could
 // draw a list of links.
+const InvitationPage = lazy(() => import("./pages/InvitationPage").then(m => ({default: m.InvitationPage})));
 const OrgDirectory = lazy(() => import("./pages/OrgDirectory").then((m) => ({ default: m.OrgDirectory })));
 const SpacePage = lazy(() => import("./pages/SpacePage").then((m) => ({ default: m.SpacePage })));
 const SpaceSettingsPage = lazy(() =>
@@ -37,6 +38,7 @@ export default function App() {
           <Suspense fallback={null}>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/invite" element={<InvitationPage />} />
               {/* The org directory: how somebody finds their team's room
                   without being sent a link. It lists what the server says this
                   caller may see — org-visible spaces plus their own — and being

@@ -28,15 +28,20 @@ type linkRouteExpectation struct {
 // answers 401, 403 or 404 — never 200 with less data, because a partial answer
 // is still an answer.
 var linkGuestRouteTable = map[string]linkRouteExpectation{
-	"GET /api/sessions/{id}/publication/connection":                  {status: http.StatusForbidden},
-	"POST /api/sessions/{id}/publication/connection":                 {status: http.StatusForbidden},
-	"DELETE /api/sessions/{id}/publication/connection":               {status: http.StatusForbidden},
-	"GET /api/sessions/{id}/publication/reviews":                     {status: http.StatusForbidden},
-	"POST /api/sessions/{id}/publication/preview":                    {status: http.StatusForbidden},
-	"POST /api/sessions/{id}/publication/approve":                    {status: http.StatusForbidden},
-	"GET /api/sessions/{id}/publication/reviews/{reviewId}/receipts": {status: http.StatusForbidden},
-	"POST /api/sessions/{id}/publication/reviews/{reviewId}/run":     {status: http.StatusForbidden},
-	"POST /api/sessions/{id}/publication/reviews/{reviewId}/verify":  {status: http.StatusForbidden},
+	"POST /api/invitations/preview":                                   {status: http.StatusForbidden},
+	"POST /api/invitations/accept":                                    {status: http.StatusUnauthorized},
+	"POST /api/orgs/{org}/spaces/{slug}/invitations":                  {status: http.StatusUnauthorized},
+	"GET /api/orgs/{org}/spaces/{slug}/invitations":                   {status: http.StatusUnauthorized},
+	"DELETE /api/orgs/{org}/spaces/{slug}/invitations/{invitationId}": {status: http.StatusUnauthorized},
+	"GET /api/sessions/{id}/publication/connection":                   {status: http.StatusForbidden},
+	"POST /api/sessions/{id}/publication/connection":                  {status: http.StatusForbidden},
+	"DELETE /api/sessions/{id}/publication/connection":                {status: http.StatusForbidden},
+	"GET /api/sessions/{id}/publication/reviews":                      {status: http.StatusForbidden},
+	"POST /api/sessions/{id}/publication/preview":                     {status: http.StatusForbidden},
+	"POST /api/sessions/{id}/publication/approve":                     {status: http.StatusForbidden},
+	"GET /api/sessions/{id}/publication/reviews/{reviewId}/receipts":  {status: http.StatusForbidden},
+	"POST /api/sessions/{id}/publication/reviews/{reviewId}/run":      {status: http.StatusForbidden},
+	"POST /api/sessions/{id}/publication/reviews/{reviewId}/verify":   {status: http.StatusForbidden},
 
 	// Infrastructure, identical for everyone and carrying nothing about any
 	// room. These are the only non-4xx entries outside the bound session.
