@@ -146,3 +146,18 @@ race suite, frontend checks, scoped guard mutations and vulnerability reports
 as separate evidence. A clear scan is a dated check against its current
 advisory feed, not a guarantee against unknown vulnerabilities. Repeat the
 scan and take another fresh restore-checked backup at actual deployment.
+
+## Scheduled standups
+
+The production scheduler receives the same `INVITE_ONLY` setting as the HTTP
+API. Before claiming a slot or ending a prior meeting, it checks and locks the
+saved-by account's active organization membership, hosting grant and workspace
+ownership. Uninvited legacy schedules, or schedules whose saver loses any of
+those permissions, open no new sessions. Refusal does not claim the slot,
+close the preceding meeting or modify stored schedule configuration.
+
+A current host/owner resumes a paused schedule by saving it again, making them
+the saved-by account. A deleted saver also pauses the schedule in invite-only
+mode. Legacy open mode retains its previous owner fallback. The scheduler
+revocation race, option wiring and negative host/organization/membership/owner
+cases have dedicated real-database tests and guard mutations.

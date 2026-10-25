@@ -381,7 +381,7 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 	}
 	if pool != nil && opts.StandupScheduleInterval > 0 {
 		background.Go(func() {
-			standup.RunScheduler(bgCtx, pool, opts.StandupScheduleInterval, a.limits.SessionsPerSpace, a.broadcastState)
+			standup.RunScheduler(bgCtx, pool, opts.StandupScheduleInterval, a.limits.SessionsPerSpace, opts.InviteOnly, a.broadcastState)
 		})
 	}
 	a.webhookHosts = opts.StandupWebhookHosts

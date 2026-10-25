@@ -2014,6 +2014,23 @@ mutate 'invitation role fixed during creation' \
  components/WorkspaceInvitations.tsx 'disabled={busy}' 'disabled={false}'
 
 restore_all
+target internal/api
+mutate 'invitation policy reaches standup scheduler' \
+ 'TestInviteOnlySchedulerWiring' \
+ router.go 'a.limits.SessionsPerSpace, opts.InviteOnly, a.broadcastState)' 'a.limits.SessionsPerSpace, false, a.broadcastState)'
+
+restore_all
+target internal/standup
+mutate 'scheduled sessions require an invited host' \
+ 'TestInviteOnlyScheduleHost' \
+ schedule.go 'if d.requireHost {' 'if false && d.requireHost {'
+
+restore_all
+mutate 'scheduled host revocation row locks' \
+ 'TestScheduleHostRevocationRace' \
+ schedule.go 'for share of om,h,m' ''
+
+restore_all
 
 echo
 if [ "$harness_failures" -ne 0 ]; then

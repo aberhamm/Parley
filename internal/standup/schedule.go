@@ -216,6 +216,7 @@ func (st *Schedules) ZoneReadable(ctx context.Context, name string) (bool, error
 
 type dueSchedule struct {
 	id, spaceID, facilitator string
+	requireHost              bool
 	Schedule
 }
 
@@ -225,6 +226,11 @@ type dueSchedule struct {
 // every replica at once: the slot's primary key admits exactly one insert,
 // and the losers block on it and then do nothing.
 func Tick(ctx context.Context, pool *pgxpool.Pool, now time.Time, sessionLimit int) ([]string, error) {
+	return TickWithPolicy(ctx, pool, now, sessionLimit, false)
+}
+
+// TickWithPolicy applies the same host/owner boundary as saving a schedule.
+func TickWithPolicy(ctx context.Context, pool *pgxpool.Pool, now time.Time, sessionLimit int, inviteOnly bool) ([]string, error) {
 	rows, err := pool.Query(ctx,
 		"select id::text, space_id::text, updated_by::text, weekdays, to_char(open_time, 'HH24:MI'), timezone, window_minutes "+
 			"from standup_schedules where enabled")
@@ -234,9 +240,11 @@ func Tick(ctx context.Context, pool *pgxpool.Pool, now time.Time, sessionLimit i
 	var due []dueSchedule
 	for rows.Next() {
 		var d dueSchedule
+		d.requireHost = inviteOnly
 		var days []int16
 		// updated_by is nullable: deleting the saver clears it and leaves the
-		// schedule, and a null here falls through to a current owner at open.
+		// schedule. Legacy mode falls back to another owner; invite-only
+		// mode pauses until a current host/owner saves the schedule again.
 		var updatedBy *string
 		if err := rows.Scan(&d.id, &d.spaceID, &updatedBy, &days, &d.OpenTime, &d.Timezone, &d.WindowMinutes); err != nil {
 			rows.Close()
@@ -293,6 +301,25 @@ func openSlot(ctx context.Context, pool *pgxpool.Pool, d dueSchedule, date strin
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	if d.requireHost {
+		if d.facilitator == "" {
+			return nil, nil
+		}
+		var owner string
+		err := tx.QueryRow(ctx, `select m.user_id from org_members om
+          join hosting_grants h on h.org_id=om.org_id and h.user_id=om.user_id
+          join members m on m.user_id=h.user_id
+          join spaces s on s.id=m.space_id and s.org_id=h.org_id
+          where m.space_id=$1 and m.user_id=$2 and m.role='owner' and om.revoked_at is null
+          for share of om,h,m`, d.spaceID, d.facilitator).Scan(&owner)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("checking scheduled host: %w", err)
+		}
+	}
 
 	tag, err := tx.Exec(ctx,
 		"insert into standup_schedule_slots (schedule_id, slot_date) values ($1, $2::date) on conflict do nothing",
@@ -420,11 +447,11 @@ func slotFacilitator(ctx context.Context, tx pgx.Tx, spaceID, updatedBy string) 
 // RunScheduler ticks every interval until ctx is done, handing each changed
 // session to broadcast. The caller owns the goroutine and waits for it on
 // shutdown, before the pool closes.
-func RunScheduler(ctx context.Context, pool *pgxpool.Pool, every time.Duration, sessionLimit int, broadcast func(context.Context, string)) {
+func RunScheduler(ctx context.Context, pool *pgxpool.Pool, every time.Duration, sessionLimit int, inviteOnly bool, broadcast func(context.Context, string)) {
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
 	for {
-		schedulerPass(ctx, pool, sessionLimit, broadcast)
+		schedulerPass(ctx, pool, sessionLimit, inviteOnly, broadcast)
 		select {
 		case <-ctx.Done():
 			return
@@ -433,9 +460,9 @@ func RunScheduler(ctx context.Context, pool *pgxpool.Pool, every time.Duration, 
 	}
 }
 
-func schedulerPass(ctx context.Context, pool *pgxpool.Pool, sessionLimit int, broadcast func(context.Context, string)) {
+func schedulerPass(ctx context.Context, pool *pgxpool.Pool, sessionLimit int, inviteOnly bool, broadcast func(context.Context, string)) {
 	defer recovery.Handle("standup scheduler")
-	ids, err := Tick(ctx, pool, time.Now(), sessionLimit)
+	ids, err := TickWithPolicy(ctx, pool, time.Now(), sessionLimit, inviteOnly)
 	if err != nil && ctx.Err() == nil {
 		slog.Error("standup scheduler pass failed", "error", err)
 	}

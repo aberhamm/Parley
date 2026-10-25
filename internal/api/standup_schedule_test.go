@@ -85,3 +85,45 @@ func TestRouterRunsTheStandupSchedulerAndStopsItOnShutdown(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+func TestInviteOnlySchedulerWiring(t *testing.T) {
+	pool := testPool(t)
+	setup := testServerWith(t, pool, Options{InviteOnly: true})
+	owner := inviteHost(t, setup, pool, "Scheduled host")
+	_, space := createSpace(t, setup, "Host scheduled team", owner)
+	slug := space["slug"].(string)
+	always := `{"weekdays":[0,1,2,3,4,5,6],"openTime":"00:00","timezone":"UTC","windowMinutes":60,"enabled":true}`
+	if resp, _ := doJSON(t, setup, http.MethodPut, scheduleURL(slug), always, owner); resp.StatusCode != 200 {
+		t.Fatal(resp.StatusCode)
+	}
+	_, me := getMe(t, setup, owner)
+	var orgID string
+	if err := pool.QueryRow(t.Context(), `delete from hosting_grants where user_id=$1 returning org_id`, me["id"]).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	_ = testServerWith(t, pool, Options{InviteOnly: true, StandupScheduleInterval: 10 * time.Millisecond})
+	time.Sleep(150 * time.Millisecond)
+	var n int
+	if err := pool.QueryRow(t.Context(), `select count(*) from standup_schedule_slots where session_id is not null`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatal("scheduler bypassed InviteOnly")
+	}
+	if _, err := pool.Exec(t.Context(), `insert into hosting_grants(org_id,user_id) values($1,$2)`, orgID, me["id"]); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if err := pool.QueryRow(t.Context(), `select count(*) from standup_schedule_slots where session_id is not null`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("invited host schedule did not open")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

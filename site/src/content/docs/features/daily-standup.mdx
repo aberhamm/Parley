@@ -11,7 +11,7 @@ import roundDark from "../../../assets/standup-round-dark.png";
 import blockersLight from "../../../assets/blockers-roundup-light.png";
 import blockersDark from "../../../assets/blockers-roundup-dark.png";
 
-<VerifiedStamp source={["internal/standup/state.go", "internal/standup/routes.go", "internal/standup/commitments.go", "internal/standup/kudos.go", "web/src/pages/StandupRoom.tsx", "web/src/components/Commitments.tsx", "web/src/tokens.css", "web/src/lib/notifications.ts", "web/src/components/NotificationSoundButton.tsx", "web/src/components/AsyncDigest.tsx", "web/src/lib/kinds.ts", "internal/standup/schedule.go", "internal/standup/webhook.go", "internal/api/standup_webhook.go", "internal/standup/ics.go", "internal/api/ics.go", "internal/standup/mentions.go", "internal/api/standup_mentions.go", "internal/standup/away.go", "internal/standup/trend.go", "internal/store/standup_trend.go", "internal/store/sessions.go", "internal/session/registry.go", "internal/api/standup_away.go", "web/src/components/AwayDays.tsx", "web/src/components/StandupTrend.tsx", "web/src/pages/SpacePage.tsx", "web/src/components/StandupSchedulePanel.tsx", "internal/api/kudos.go", "web/src/components/Kudos.tsx"]} />
+<VerifiedStamp version="unreleased" source={["internal/api/router.go", "internal/api/standup_schedule_test.go", "internal/standup/invitation_host_test.go", "internal/standup/state.go", "internal/standup/routes.go", "internal/standup/commitments.go", "internal/standup/kudos.go", "web/src/pages/StandupRoom.tsx", "web/src/components/Commitments.tsx", "web/src/tokens.css", "web/src/lib/notifications.ts", "web/src/components/NotificationSoundButton.tsx", "web/src/components/AsyncDigest.tsx", "web/src/lib/kinds.ts", "internal/standup/schedule.go", "internal/standup/webhook.go", "internal/api/standup_webhook.go", "internal/standup/ics.go", "internal/api/ics.go", "internal/standup/mentions.go", "internal/api/standup_mentions.go", "internal/standup/away.go", "internal/standup/trend.go", "internal/store/standup_trend.go", "internal/store/sessions.go", "internal/session/registry.go", "internal/api/standup_away.go", "web/src/components/AwayDays.tsx", "web/src/components/StandupTrend.tsx", "web/src/pages/SpacePage.tsx", "web/src/components/StandupSchedulePanel.tsx", "internal/api/kudos.go", "web/src/components/Kudos.tsx"]} />
 
 ## Starting a standup session
 
@@ -508,3 +508,13 @@ it lists only the spaces they still belong to.
   { name: "Participation per person", status: "out-of-scope", detail: "Only the team trend exists: frozen per-day counts from scheduled standups, days under four eligible people dropped, rounded to one decimal. No endpoint, column or screen computes it for one person." },
   { name: "Chasing people who did not write anything", status: "out-of-scope", detail: "Parley does not nag. The one reminder is a calendar alarm the person set on their own feed." },
 ]} />
+
+## Invitation-only scheduling in Scrum Pro
+
+With `INVITE_ONLY=true`, the person who last saved a schedule must still be
+an invited host, an active organization member and a workspace owner when the
+next session opens. Losing any of those permissions pauses new sessions and
+leaves the current meeting untouched. A current host and owner can resume the
+schedule by saving it again. Existing owners are not automatically promoted
+to hosts during the invitation-only upgrade. Legacy open mode retains its
+existing owner fallback behavior.
