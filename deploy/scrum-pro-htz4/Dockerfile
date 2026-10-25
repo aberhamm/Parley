@@ -1,5 +1,5 @@
 # Migration build: native build stages, cross-compiled amd64 runtime.
-# Application source is release d6e22b74dbcf21612a0fb35c0f75671de44bf0d1.
+# Build from the chosen source checkout; record its commit in the image labels.
 FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS webbuild
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./

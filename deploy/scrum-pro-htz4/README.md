@@ -2,9 +2,9 @@
 
 Production: https://scrum.matthew.systems
 
-Application release: `d6e22b74dbcf21612a0fb35c0f75671de44bf0d1`.
+Application release: `afd0913d7d5b5467b58c9d8565a8973791b91ca5`.
 Linux/amd64 OCI image index digest:
-`sha256:2c635eed966411b4497eb5915ada5bbcd7cbc8c4c8fb860a07e41dd5dbf8b549`.
+`sha256:2386de3829f81513bf26ae9d42820a9156d48df9e98d12a9f695b95b049c52d2`.
 The image was built on the Mac Studio, saved and loaded over SSH, and verified
 on Hetzner by digest and architecture. It is not published to a registry.
 The deployment Dockerfile uses native build stages and cross-compiles the same
@@ -168,3 +168,13 @@ migration directory. No application behavior or database schema changed.
 ## Umami rollout, 22 October 2026
 
 The application with bounded page categories is source `43f181ec4ec8c4783e76bff4d7d71510c371956a`, Linux/amd64 image `sha256:d5f0eadbe5068590376c0893da89ce9d062b12bef2562b530cda630f61dad939`. The dedicated gateway serves `/a/script.js` and `/a/api/send`, strips app credentials and referrers, and forwards to `a.matthew.systems`. The previous image and configuration are retained on the host in `.umami-backup-20261022`. No schema, volume, tunnel or host ingress changes were made.
+
+## Homepage rollout, 25 October 2026
+
+Source `afd0913d7d5b5467b58c9d8565a8973791b91ca5` moves the workspace input above the fold and shortens first-visit copy. The amd64 image was built on the Studio using the pinned cross-build Dockerfile, then loaded on Hetzner. Runtime image reference: `scrum-pro@sha256:2386de3829f81513bf26ae9d42820a9156d48df9e98d12a9f695b95b049c52d2`. Only public-app is replaced; the database, dedicated gateway, tunnel, credentials and analytics routing are retained.
+
+Before rollout, a fresh custom-format PostgreSQL dump was archive-validated, encrypted, copied to the Studio and Hetzner, and checked by SHA-256. Hetzner backup: `/opt/apps/scrum-pro/backups/homepage-predeploy-20261025.dump.enc`; Studio copy/build metadata/screenshots: `/Users/matthew/.local/share/scrum-home-release-20261025/`. Recovery key remains in the separate protected Studio recovery directory documented above.
+
+For image rollback without reverting data, copy `/opt/apps/scrum-pro/compose.before-homepage-20261025.yaml` to `compose.yaml` and run `./manage.sh up -d --no-deps --wait public-app`. The prior image is retained on Hetzner. This release contains no schema change; do not restore an older database merely to revert this homepage.
+
+Live verification passed: HTTPS readiness and version, desktop (1280×720) and mobile (390×844) homepage rendering with no horizontal overflow, HTTP-to-HTTPS redirect, and the existing analytics script route. Runtime secret/gateway hashes, DB/gateway/tunnel container IDs, and workspace/member/session counts matched before and after. The reviewed frontend passed all 79 Landing tests, build and lint (existing warnings only).
