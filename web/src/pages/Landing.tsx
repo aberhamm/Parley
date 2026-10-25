@@ -552,19 +552,17 @@ export function Landing() {
           column re-centered itself on every filter click. */}
       <main
         className={
-          "mx-auto flex w-full flex-1 flex-col items-center gap-7 px-4 py-6 sm:px-6 " +
-          (wide ? "max-w-6xl justify-start pt-16 sm:pt-20" : "max-w-2xl justify-center")
+          "mx-auto flex w-full flex-1 flex-col px-4 py-6 sm:px-6 " +
+          (wide ? "max-w-6xl items-center justify-start gap-7 pt-16 sm:pt-20" : "relative max-w-6xl items-start justify-start gap-5 pt-6 sm:pt-8 lg:pr-[28rem]")
         }
       >
-        {!settling && stranger && <DealAndReveal />}
-
         {/* The wordmark is a brand mark, not the document's heading. */}
-        <div className={"flex flex-col gap-3 " + (wide ? "items-start self-stretch" : "items-center")}>
+        <div className={"flex flex-col " + (wide ? "items-start self-stretch gap-3" : "items-start gap-8")}>
           <div className="flex items-center gap-3">
             <Logo size={wide ? 30 : 26} />
             <span
               className={
-                (wide ? "text-[1.7rem]" : "text-3xl") +
+                (wide ? "text-[1.7rem]" : "text-2xl") +
                 " font-display font-bold tracking-[-0.02em]"
               }
             >
@@ -572,8 +570,8 @@ export function Landing() {
             </span>
           </div>
           {!settling && stranger && !guestRoomId && (
-            <h1 className="max-w-[18ch] text-balance text-center font-display text-[clamp(2rem,6vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.02em]">
-              Your team’s workspace. Every session in one place.
+            <h1 className="max-w-[20ch] text-balance font-display text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.02em]">
+              Plan your sprint. Keep your team in sync.
             </h1>
           )}
         </div>
@@ -594,10 +592,8 @@ export function Landing() {
         {/* The pitch is for someone deciding. Someone with spaces already decided,
             and their list should not sit below an advertisement for it. */}
         {!settling && stranger && !guestRoomId && (
-          <p className="max-w-[68ch] text-pretty text-ink-soft">
-            Create a workspace for your team, then start planning poker to estimate
-            stories or a standup to share daily updates. Your workspace keeps your
-            sessions, members, and history together.
+          <p className="max-w-[48ch] text-pretty text-ink-soft">
+            Create a team workspace for planning poker and daily standups.
           </p>
         )}
 
@@ -714,8 +710,8 @@ export function Landing() {
                   <form
                     onSubmit={submit}
                     className={
-                      "flex w-full flex-col gap-3 self-center rounded-panel border border-line bg-surface p-5 shadow-rest sm:flex-row sm:flex-wrap sm:items-end " +
-                      (wide ? "" : "max-w-md")
+                      "flex w-full flex-col gap-3 rounded-panel border border-line bg-surface p-5 shadow-rest sm:flex-row sm:flex-wrap sm:items-end " +
+                      (wide ? "self-center" : "max-w-xl self-start")
                     }
                   >
                     <div className="min-w-0 flex-1 sm:min-w-48">
@@ -767,6 +763,12 @@ export function Landing() {
                   </form>
                 )}
 
+                {!settling && stranger && (
+                  <p className="max-w-xl text-sm leading-relaxed text-ink-soft">
+                    A workspace keeps your team, sessions, and history together.
+                  </p>
+                )}
+
                 {error && (
                   <p id={errorId} role="alert" className="flex items-center gap-3 font-bold text-stop">
                     {error}
@@ -786,9 +788,8 @@ export function Landing() {
                 {/* Worth saying until the list says it for them: once someone has
                     a few tables they know how they got there. */}
                 {!settling && spaces.length <= 1 && (
-                  <p className={"text-pretty text-sm text-ink-faint " + (wide ? "self-stretch px-1" : "max-w-md self-center")}>
-                    Got a link from a teammate? That link is your invite — just open it. A
-                    passcode alone won't do it; ask them for the link.
+                  <p className={"text-pretty text-sm text-ink-faint " + (wide ? "self-stretch px-1" : "max-w-xl")}>
+                    Joining your team? Open the invite link they shared.
                   </p>
                 )}
               </div>
@@ -994,6 +995,14 @@ export function Landing() {
 
             </div>
           </>
+        )}
+
+        {/* Keep the signature cards beside the task on desktop. On a phone,
+            the workspace form gets the first screen without decorative space. */}
+        {!settling && stranger && !guestRoomId && (
+          <div aria-hidden className="absolute right-8 top-36 hidden w-[352px] lg:block">
+            <DealAndReveal />
+          </div>
         )}
 
         {needName && (
