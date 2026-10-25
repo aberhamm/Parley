@@ -1972,6 +1972,47 @@ mutate 'publication content invalidates consent' \
  'src/components/SplitPublication.test.tsx::invalidates payload consent' \
  components/SplitPublication.tsx 'if(previousSnapshot.current!==snapshot)' 'if(false && previousSnapshot.current!==snapshot)'
 
+# Scrum Pro invitation boundaries.
+restore_all
+target internal/api
+mutate 'invitation-only hosting gate' \
+ 'TestInviteOnlyRefusesUninvitedCreation' \
+ invitations.go 'if !a.inviteOnly {' 'if !a.inviteOnly || r.Method != "" {'
+
+restore_all
+mutate 'participant invitation default' \
+ 'TestInvitationsRolesAndDelegation' \
+ invitations.go 'body.Role = "participant"' 'body.Role = "host"'
+
+restore_all
+mutate 'invitation expiry at preview and consumption' \
+ 'TestInvitationsUnavailableAndAdmission' \
+ ../store/invitations.go 'i.expires_at>now()' 'true' \
+ ../store/invitations.go 'where id=$1 and expires_at>clock_timestamp()' 'where id=$1'
+
+restore_all
+target internal/store
+mutate 'invitation issuer revocation row locks' \
+ 'TestInvitationIssuerRevocation' \
+ invitations.go 'for share of om,h,m' ''
+
+restore_all
+mutate 'invitation pending quota' \
+ 'TestInvitationPendingQuotaAndTokenCustody' \
+ invitations.go 'if n >= 50 {' 'if n >= 5000 {'
+
+restore_all
+target internal/api
+mutate 'invitation retry does not reapply permissions' \
+ 'TestInvitationRecipientCanRetryWithoutRegranting' \
+ ../store/invitations.go 'return i, tx.Commit(ctx)' 'if false { return i, tx.Commit(ctx) }'
+
+restore_all
+target web/src web
+mutate 'invitation role fixed during creation' \
+ 'src/components/WorkspaceInvitations.test.tsx::keeps the role fixed' \
+ components/WorkspaceInvitations.tsx 'disabled={busy}' 'disabled={false}'
+
 restore_all
 
 echo
