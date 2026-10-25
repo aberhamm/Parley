@@ -29,3 +29,12 @@ it("lists invitations without reconstructing tokens and revokes a pending invita
  await waitFor(()=>expect(api).toHaveBeenCalledWith("DELETE","/api/orgs/default/spaces/team/invitations/i1"));
  expect(screen.queryByLabelText("Invitation link")).toBeNull();
 });
+it("keeps the role fixed while its invitation is being created",async()=>{
+ let finish!:(value:unknown)=>void;
+ vi.mocked(api).mockImplementation(async(method)=>method==="POST"?new Promise(resolve=>{finish=resolve;}):[]);
+ renderApp(<WorkspaceInvitations org="default" slug="team"/>);
+ await userEvent.click(screen.getByRole("button",{name:"Invite someone"}));
+ await userEvent.click(screen.getByRole("button",{name:"Create invitation"}));
+ try {expect((screen.getByLabelText("Invite as") as HTMLSelectElement).disabled).toBe(true);}
+ finally {finish({path:"/invite#t=secret"});}
+});

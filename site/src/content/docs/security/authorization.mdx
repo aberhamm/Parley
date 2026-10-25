@@ -415,3 +415,8 @@ Browser-cookie identity remains the open-mode identity mechanism. Moving to a
 new browser does not recover that identity or hosting grant; configure OIDC
 when lasting cross-device sign-in is needed. Restoring backups requires
 reconciling hosting grants and invitation revocations/use as well as sessions.
+
+A host invitation does not change the facilitator handoff/recovery rules inside
+an existing meeting. Hosting controls workspace/session creation and workspace
+administration. The original recipient may retry acceptance after a lost HTTP
+response; it returns a receipt and never restores permissions later revoked.

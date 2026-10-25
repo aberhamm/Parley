@@ -106,6 +106,7 @@ function InvitationModal({
         id="invitation-role"
         className={inputClass}
         value={role}
+        disabled={busy}
         onChange={(e) => {
           setRole(e.target.value as "participant" | "host");
           setLink("");

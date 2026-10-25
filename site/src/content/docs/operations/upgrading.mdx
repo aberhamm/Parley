@@ -5,7 +5,7 @@ description: Moving Parley forward, and why rolling back is not always safe.
 
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/db/migrate.go", "internal/db/migrations/0052_poker_splits.sql", "internal/db/migrations/0053_poker_dependencies.sql", "internal/db/migrations/0054_poker_estimate_scope.sql", "internal/db/migrations/0058_poker_parked_drafts.sql", "internal/db/migrations/0059_poker_parent_estimate.sql", "internal/poker/splits.go", "internal/poker/rounds.go", "internal/poker/dependencies.go"]} />
+<VerifiedStamp version="unreleased" source={["internal/db/migrations/0060_host_invitations.sql", "internal/store/invitations.go", "internal/db/migrate.go", "internal/db/migrations/0052_poker_splits.sql", "internal/db/migrations/0053_poker_dependencies.sql", "internal/db/migrations/0054_poker_estimate_scope.sql", "internal/db/migrations/0058_poker_parked_drafts.sql", "internal/db/migrations/0059_poker_parent_estimate.sql", "internal/poker/splits.go", "internal/poker/rounds.go", "internal/poker/dependencies.go"]} />
 
 ## Parley
 
@@ -29,6 +29,22 @@ Rolling *back* an image is only safe if the newer version didn't add
 migrations. If it did, Parley refuses to start and says so, rather than running
 against a schema it doesn't understand. Restore from a
 [backup](/operations/backups-and-recovery/) instead.
+
+## Scrum Pro invitation-only upgrade
+
+Scrum Pro defaults to `INVITE_ONLY=true`. Migration 0060 preserves existing
+identities, ownership, passcodes and sessions, but does not promote existing
+owners to hosts. Existing owners need an explicit host invitation to continue
+creating workspaces/sessions and changing workspace settings. Issue the first
+host link using `parley -create-host-invite`; accept it in the existing browser
+identity to retain access to that identity's workspaces.
+
+Pause writes, back up and restore-check the database, and replace all old app
+replicas before exposing the new policy. Verify participant denials and host
+creation after acceptance. Keep a protected off-host copy of configuration and
+backup. A prior binary refuses schema 0060; rollback requires a compatible
+binary or the matching pre-upgrade database plus reconciliation of later
+writes and revocations. Setting `INVITE_ONLY=false` reopens public hosting.
 
 ## Upgrading to the release that adds Poker splits
 

@@ -137,6 +137,7 @@ func TestInvitationsUnavailableAndAdmission(t *testing.T) {
 	for _, kind := range []string{"expired", "revoked", "used", "issuer-removed"} {
 		t.Run(kind, func(t *testing.T) {
 			token, id := mintWorkspaceInvite(t, srv, host, slug, "participant")
+			caller := outsider
 			switch kind {
 			case "expired":
 				_, err := pool.Exec(t.Context(), `update workspace_invitations set created_at=now()-interval '9 days',expires_at=now()-interval '1 day' where id=$1`, id)
@@ -153,6 +154,7 @@ func TestInvitationsUnavailableAndAdmission(t *testing.T) {
 				if r.StatusCode != 200 {
 					t.Fatal(r.StatusCode)
 				}
+				caller = signup(t, srv, "Another recipient")
 			case "issuer-removed":
 				_, me := getMe(t, srv, host)
 				_, err := pool.Exec(t.Context(), `update members set role='member' where user_id=$1`, me["id"])
@@ -161,7 +163,7 @@ func TestInvitationsUnavailableAndAdmission(t *testing.T) {
 				}
 			}
 			for _, path := range []string{"preview", "accept"} {
-				r, _ := doJSON(t, srv, "POST", "/api/invitations/"+path, fmt.Sprintf(`{"token":%q}`, token), outsider)
+				r, _ := doJSON(t, srv, "POST", "/api/invitations/"+path, fmt.Sprintf(`{"token":%q}`, token), caller)
 				if r.StatusCode != 410 {
 					t.Fatalf("%s %s got %d", kind, path, r.StatusCode)
 				}
@@ -202,5 +204,41 @@ func TestInvitationAcceptRaceAndRevokedOrg(t *testing.T) {
 	}
 	if _, err = s.Accept(t.Context(), token, am["id"].(string)); !errors.Is(err, store.ErrInvitation) {
 		t.Fatalf("org revocation resurrected: %v", err)
+	}
+}
+
+func TestInvitationRecipientCanRetryWithoutRegranting(t *testing.T) {
+	pool := testPool(t)
+	srv := testServerWith(t, pool, Options{InviteOnly: true})
+	host := inviteHost(t, srv, pool, "Issuer")
+	_, sp := createSpace(t, srv, "Retry acceptance", host)
+	recipient := signup(t, srv, "Recipient")
+	other := signup(t, srv, "Other")
+	token, _ := mintWorkspaceInvite(t, srv, host, sp["slug"].(string), "host")
+	body := fmt.Sprintf(`{"token":%q}`, token)
+	for range 2 {
+		r, _ := doJSON(t, srv, "POST", "/api/invitations/accept", body, recipient)
+		if r.StatusCode != 200 {
+			t.Fatalf("recipient retry: %d", r.StatusCode)
+		}
+	}
+	r, _ := doJSON(t, srv, "POST", "/api/invitations/accept", body, other)
+	if r.StatusCode != 410 {
+		t.Fatalf("other recipient replay: %d", r.StatusCode)
+	}
+	_, me := getMe(t, srv, recipient)
+	if _, err := pool.Exec(t.Context(), `delete from hosting_grants where user_id=$1`, me["id"]); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = doJSON(t, srv, "POST", "/api/invitations/accept", body, recipient)
+	if r.StatusCode != 200 {
+		t.Fatalf("receipt retry: %d", r.StatusCode)
+	}
+	var grant bool
+	if err := pool.QueryRow(t.Context(), `select exists(select 1 from hosting_grants where user_id=$1)`, me["id"]).Scan(&grant); err != nil {
+		t.Fatal(err)
+	}
+	if grant {
+		t.Fatal("receipt restored revoked hosting")
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -53,13 +54,8 @@ func (s *Invitations) Mint(ctx context.Context, orgID string, spaceID, issuerID 
 		if _, err = tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, *spaceID+":"+*issuerID); err != nil {
 			return Invitation{}, "", err
 		}
-		var allowed bool
-		err = tx.QueryRow(ctx, `select exists(select 1 from spaces s join members m on m.space_id=s.id join hosting_grants h on h.org_id=s.org_id and h.user_id=m.user_id join org_members om on om.org_id=h.org_id and om.user_id=h.user_id where s.id=$1 and s.org_id=$2 and m.user_id=$3 and m.role='owner' and om.revoked_at is null)`, *spaceID, orgID, *issuerID).Scan(&allowed)
-		if err != nil {
+		if err = lockInvitationIssuer(ctx, tx, orgID, *spaceID, *issuerID); err != nil {
 			return Invitation{}, "", err
-		}
-		if !allowed {
-			return Invitation{}, "", ErrInvitation
 		}
 		var n int
 		if err = tx.QueryRow(ctx, `select count(*) from workspace_invitations where space_id=$1 and issuer_id=$2 and accepted_at is null and revoked_at is null and expires_at>now()`, *spaceID, *issuerID).Scan(&n); err != nil {
@@ -107,7 +103,37 @@ func (s *Invitations) Preview(ctx context.Context, token string) (Invitation, er
 	}
 	return scanInvitation(s.Pool.QueryRow(ctx, invitationSelect+`where i.token_hash=$1 and `+liveInvitation, hash))
 }
+
+// lockInvitationIssuer holds the live grants until the invitation transaction
+// commits. A revocation already in progress is observed after its lock releases.
+func lockInvitationIssuer(ctx context.Context, tx pgx.Tx, orgID, spaceID, userID string) error {
+	var id string
+	err := tx.QueryRow(ctx, `select m.user_id from org_members om
+ join hosting_grants h on h.org_id=om.org_id and h.user_id=om.user_id
+ join members m on m.user_id=h.user_id
+ join spaces s on s.id=m.space_id and s.org_id=h.org_id
+ where om.org_id=$1 and m.space_id=$2 and m.user_id=$3
+ and om.revoked_at is null and m.role='owner'
+ for share of om,h,m`, orgID, spaceID, userID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvitation
+	}
+	return err
+}
+
+// Accept retries a rolled-back deadlock, possible with reciprocal host invites.
+// Each attempt is a complete transaction; no token can be consumed twice.
 func (s *Invitations) Accept(ctx context.Context, token, userID string) (Invitation, error) {
+	for attempt := 0; ; attempt++ {
+		i, err := s.accept(ctx, token, userID)
+		var pgerr *pgconn.PgError
+		if attempt >= 2 || !errors.As(err, &pgerr) || (pgerr.Code != "40P01" && pgerr.Code != "40001") {
+			return i, err
+		}
+	}
+}
+
+func (s *Invitations) accept(ctx context.Context, token, userID string) (Invitation, error) {
 	hash, err := invitationHash(token)
 	if err != nil {
 		return Invitation{}, err
@@ -118,9 +144,31 @@ func (s *Invitations) Accept(ctx context.Context, token, userID string) (Invitat
 	}
 	defer tx.Rollback(ctx)
 	// FOR UPDATE OF i makes concurrent acceptance/revocation single-winner.
-	i, err := scanInvitation(tx.QueryRow(ctx, invitationSelect+`where i.token_hash=$1 and `+liveInvitation+` for update of i`, hash))
+	i, err := scanInvitation(tx.QueryRow(ctx, invitationSelect+`where i.token_hash=$1 and ((`+liveInvitation+`) or (i.accepted_by=$2 and i.accepted_at is not null and i.expires_at>clock_timestamp())) for update of i`, hash, userID))
 	if err != nil {
 		return Invitation{}, err
+	}
+	// A lost HTTP response can be retried by its original recipient. Return
+	// the receipt only; never reapply permissions that were later removed.
+	if i.AcceptedAt != nil {
+		var active bool
+		err = tx.QueryRow(ctx, `select exists(select 1 from org_members om where om.org_id=$1 and om.user_id=$2 and om.revoked_at is null and ($3::uuid is null or exists(select 1 from members where space_id=$3 and user_id=$2)))`, i.OrgID, userID, i.SpaceID).Scan(&active)
+		if err != nil {
+			return i, err
+		}
+		if !active {
+			return i, ErrInvitation
+		}
+		return i, tx.Commit(ctx)
+	}
+	if i.SpaceID != nil {
+		var issuerID string
+		if err = tx.QueryRow(ctx, `select issuer_id from workspace_invitations where id=$1`, i.ID).Scan(&issuerID); err != nil {
+			return i, err
+		}
+		if err = lockInvitationIssuer(ctx, tx, i.OrgID, *i.SpaceID, issuerID); err != nil {
+			return i, err
+		}
 	}
 	var full bool
 	if err = tx.QueryRow(ctx, `select exists(select 1 from users where id=$1 and link_id is null)`, userID).Scan(&full); err != nil {
@@ -134,7 +182,7 @@ func (s *Invitations) Accept(ctx context.Context, token, userID string) (Invitat
 		return i, err
 	}
 	var active bool
-	if err = tx.QueryRow(ctx, `select revoked_at is null from org_members where org_id=$1 and user_id=$2 for update`, i.OrgID, userID).Scan(&active); err != nil {
+	if err = tx.QueryRow(ctx, `select revoked_at is null from org_members where org_id=$1 and user_id=$2 for share`, i.OrgID, userID).Scan(&active); err != nil {
 		return i, err
 	}
 	if !active {
@@ -154,8 +202,12 @@ func (s *Invitations) Accept(ctx context.Context, token, userID string) (Invitat
 			return i, err
 		}
 	}
-	if _, err = tx.Exec(ctx, `update workspace_invitations set accepted_at=now(),accepted_by=$2 where id=$1`, i.ID, userID); err != nil {
+	tag, err := tx.Exec(ctx, `update workspace_invitations set accepted_at=clock_timestamp(),accepted_by=$2 where id=$1 and expires_at>clock_timestamp()`, i.ID, userID)
+	if err != nil {
 		return i, err
+	}
+	if tag.RowsAffected() != 1 {
+		return i, ErrInvitation
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return i, err
