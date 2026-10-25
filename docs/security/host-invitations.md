@@ -64,7 +64,7 @@ administration, not the existing facilitator handoff and recovery controls.
 
 Before changing production, build the linux/amd64 artifact off-host from the
 reviewed commit and record its immutable digest. Run the complete database
-suite using the CI toolchain (`GOTOOLCHAIN=go1.26.9 go test -p 1 -race ./...`),
+suite using the CI toolchain (`GOTOOLCHAIN=go1.26.10 go test -p 1 -race ./...`),
 with a real `TEST_DATABASE_URL`, without the database opt-out; build and test
 the frontend first. Boot the delivered image against an isolated restored
 production backup, with connectors and scheduled/external effects isolated.
@@ -131,3 +131,18 @@ an older backup discards later writes and can resurrect revoked/accepted
 invitations and memberships. Reconcile those changes before reconnecting
 public ingress. `INVITE_ONLY=false` is an explicit reopening of public hosting,
 not a security-preserving rollback.
+
+## Readiness patch baseline
+
+The readiness pass also updates the minimum CI toolchain to Go 1.26.10 and
+both container builders to the digest-pinned Go 1.27.3 Alpine image, addressing
+[GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809). The frontend lockfile uses
+Vite 8.3.5, Vitest 5.0.5 and undici 8.12.3 after auditing the full dependency
+tree, including development tools. Vite and Vitest are build/test tooling;
+production still runs only the embedded Go binary and PostgreSQL.
+
+Keep the fresh-backup migration rehearsal, delivered-image test, full real-DB
+race suite, frontend checks, scoped guard mutations and vulnerability reports
+as separate evidence. A clear scan is a dated check against its current
+advisory feed, not a guarantee against unknown vulnerabilities. Repeat the
+scan and take another fresh restore-checked backup at actual deployment.
