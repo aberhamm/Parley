@@ -250,6 +250,8 @@ func TestEverySpaceLookupIsGated(t *testing.T) {
 // org prefix. chi.Walk cannot see r.NotFound or a plain http.Handler mount, so
 // the SPA fallback is not in this table and does not need to be.
 var routeScoping = map[string]string{
+	"GET /api/orgs/{org}/spaces/{slug}/privacy":                       "org-scoped",
+	"PUT /api/orgs/{org}/spaces/{slug}/privacy":                       "org-scoped",
 	"POST /api/invitations/preview":                                   "non-slug",
 	"POST /api/invitations/accept":                                    "non-slug",
 	"POST /api/orgs/{org}/spaces/{slug}/invitations":                  "org-scoped",
@@ -286,6 +288,7 @@ var routeScoping = map[string]string{
 	"POST /api/embed/session":   "non-slug",
 	"GET /api/embed/*":          "non-slug",
 	"POST /api/embed/*":         "non-slug",
+	"POST /api/me/erase":        "non-slug",
 	"POST /api/me":              "non-slug",
 	"GET /api/me":               "non-slug",
 	// The frame is a static document and carries no org slug. The panel list

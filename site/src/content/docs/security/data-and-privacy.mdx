@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp source={["internal/db/migrations", "internal/store/users.go", "web/src/lib/notificationAudio.ts", "cmd/parley/main.go", "internal/auth/oidc.go", "internal/standup/webhook.go", "internal/plugin/fetch.go", "internal/plugin/secrets.go", "web/src/lib/meet.ts"]} />
+<VerifiedStamp version="unreleased" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -45,8 +45,12 @@ Postgres, and it is what a database dump mostly contains.
 
 ## What leaves the instance
 
-Nothing, unless you configure it. Parley has no telemetry, no analytics, no
-crash reporting and no update check.
+This Scrum Pro fork includes configured Umami usage analytics through its dedicated
+proxy. Do not apply the upstream project's no-analytics claim to this deployment.
+Usage analytics, security logs, identity-provider records, downloaded exports and
+external integration copies have separate operator retention and erasure controls.
+Application deletion does not erase them. No meeting-content erasure guarantee is
+made for arbitrary plugin storage or provider copies.
 
 Notification cues are synthesized in the browser with Web Audio. They use no
 audio files and make no network request. The server stores only the on/off
@@ -67,33 +71,44 @@ make an external connector or bring-your-own model endpoint local.
 
 ## Retention and erasure
 
+Ending a session keeps its history. Signing out (`DELETE /api/me`) revokes only
+that sign-in, not the profile or its contributions. Privacy controls are separate
+and describe the data they remove from the active application database.
+
 <Capability rows={[
-  { name: "Retention policy", status: "not-built", detail: "Application records are not automatically deleted. Session tokens are the exception: they expire on the configured lifetimes and their rows are swept hourly." },
-  { name: "Account deletion", status: "not-built", detail: "There is no endpoint. <code>DELETE /api/me</code> ends a session, it does not delete the account. Deleting a <code>users</code> row must be done in SQL, and see the caveat below — it is not a clean cascade." },
-  { name: "Per-space export or erasure", status: "not-built", detail: "Export sessions to <a href='/features/exports/'>CSV</a> individually; erase with SQL against the documented <a href='/reference/database-schema/'>schema</a>." },
-  { name: "Expired token cleanup", status: "built", detail: "An hourly background pass deletes <code>session_tokens</code> rows past either <code>SESSION_IDLE_TTL</code> or <code>SESSION_MAX_TTL</code>, so the table does not grow without bound." },
-  { name: "Content encryption at rest", status: "not-built", detail: "Meeting content and passcodes are not encrypted by Parley. Use encrypted storage or your database provider's encryption. Plugin secrets and webhook signing secrets use AES-GCM with a configured key. Binding ciphertext to its plugin install/name or webhook space requires a successful <a href='/reference/configuration/#PLUGIN_SECRET_KEY'><code>parley secrets reseal</code></a>; key custody remains the operator's responsibility." },
-  { name: "Telemetry", status: "out-of-scope", detail: "There is none, and adding it is not planned." },
+  { name: "Ended-session retention", status: "built", detail: "A current host who owns the workspace can opt into deletion after 1, 7, 30 or 90 days from a session ending. Default is off. A background pass checks eligible ended sessions each minute in bounded batches; busy rooms retry. Active/reopened sessions are not expired. Choosing a shorter period also affects already-ended sessions." },
+  { name: "Profile erasure", status: "built", detail: "POST /api/me/erase requires a full account and the exact DELETE confirmation. It removes name/avatar/sign-in data, memberships and hosting grants, plus attributable personal votes, standup entries, commitments, kudos, calendar credentials and away days. Shared session/story text remains. An opaque Deleted participant placeholder preserves required historical references; this is not deletion of every record containing the person's UUID. The last owner/admin must hand over responsibility first." },
+  { name: "Workspace and session deletion", status: "built", detail: "Workspace-owner controls remove sessions or entire workspaces from the active database. Session deletion removes stories, votes, standup entries, session links and presence. Workspace-level commitments and kudos survive session-only deletion and are removed by workspace deletion or relevant profile erasure. Link-guest profiles are erased when their session is deleted." },
+  { name: "Expired sign-in cleanup", status: "built", detail: "Expired session_tokens are swept hourly. Expiry of a sign-in does not remove the profile or meeting history." },
+  { name: "Recovery deletion journal", status: "built", detail: "Minimal object UUID/kind/time receipts commit with deletions. Operators export a cumulative private journal outside database backups and replay it before exposing a restored store. Until the export is independently copied off-host, disaster recovery may lack the newest decisions. A wrong instance or unresolved historical ownership handoff fails closed." },
+  { name: "Backup and log expiry", status: "built", detail: "The operator tool validates an exact checksum-pinned artifact manifest, previews expiry by default and removes only explicitly enrolled expired backup/rollback archives or closed log archives with --apply. It does not install scheduling, prune arbitrary snapshots, or alter active Docker logs. Deployment policies and scheduling must be configured and tested separately." },
+  { name: "Content encryption at rest", status: "not-built", detail: "Meeting content and passcodes are not encrypted by the application. Use encrypted storage and protect database backups and recovery keys. Unlinking a file or deleting a database row is not a claim of physical storage sanitization." },
 ]} />
 
-## If you need to answer a data-subject request
+## Boundaries of profile erasure
 
-There is no tooling for it. In practice: `users` gives you the person's row,
-`members` the spaces they joined, and their content is reachable by `user_id`
-from `votes` and `standup_entries`.
+A historical facilitator or creator UUID can remain on a shared object, pointing
+to the immutable, non-login Deleted participant placeholder. Other people's
+shared meeting/story text may still mention someone by name; the application
+cannot reliably identify or remove those mentions as authored personal rows.
+A workspace owner must review shared content separately. An identity provider
+can create a fresh account on a future sign-in; it does not recover the erased
+account or its hosting permissions. Existing stale credentials and writes must
+remain refused after erasure.
 
-`members`, `session_tokens`, `session_presence`, `votes` and `standup_entries`
-all cascade on delete, so removing the `users` row takes them with it.
+Security/audit logs, analytics, exports, backups, external webhooks/provider
+copies and arbitrary plugin storage are outside self-service erasure. No promise
+of immediate deletion of every copy is made. Do not tell users a fixed backup/log
+expiry until the deployment actually enforces and verifies that policy.
 
-:::caution[Deleting a user who has facilitated a session will fail]
-`sessions.facilitator_id` and `sessions.current_speaker_id` reference `users(id)`
-**without** `on delete cascade`, so Postgres refuses the delete with a foreign-key
-violation rather than orphaning the session.
+## Restoring a backup safely
 
-Reassign or delete those sessions first. This is a deliberate consequence of the
-schema, not a bug, but it means "just delete the user row" does not work for
-anyone who has ever run a session.
-:::
-
-Verify against the [schema](/reference/database-schema/) before running anything
-destructive, and take a [backup](/operations/backups-and-recovery/) first.
+The minimal deletion journal intentionally retains private identifiers so erased
+objects can be removed again after recovery. It must outlive every backup that
+could contain those objects. Export/copy failures need operator attention; the
+application's successful deletion response alone does not prove the off-host
+journal is current. Keep restored writers and outbound effects stopped, verify
+instance identity, reconcile historical ownership when necessary, then replay
+the journal. Also reconcile permissions and revocations not covered by deletion
+receipts before reopening access. See [Backups and recovery](/operations/backups-and-recovery/)
+and the repository runbook `docs/privacy-operations.md` for exact commands.

@@ -230,6 +230,10 @@ func (s *Sessions) withLockedSession(ctx context.Context, id, actorID string, ac
 	}
 	defer tx.Rollback(ctx)
 
+	if err := lockActiveProfile(ctx, tx, actorID); err != nil {
+		return err
+	}
+
 	sess, err := scanSession(tx.QueryRow(ctx,
 		"select "+sessionCols+" from sessions where id = $1 for update", id))
 	if err != nil {
@@ -259,6 +263,10 @@ func (s *Sessions) WithActiveSession(ctx context.Context, id, actorID string, fa
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := lockActiveProfile(ctx, tx, actorID); err != nil {
+		return err
+	}
 
 	sess, err := scanSession(tx.QueryRow(ctx,
 		"select "+sessionCols+" from sessions where id = $1 for update", id))

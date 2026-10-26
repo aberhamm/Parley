@@ -28,6 +28,8 @@ type linkRouteExpectation struct {
 // answers 401, 403 or 404 — never 200 with less data, because a partial answer
 // is still an answer.
 var linkGuestRouteTable = map[string]linkRouteExpectation{
+	"GET /api/orgs/{org}/spaces/{slug}/privacy":                       {status: http.StatusNotFound},
+	"PUT /api/orgs/{org}/spaces/{slug}/privacy":                       {status: http.StatusNotFound},
 	"POST /api/invitations/preview":                                   {status: http.StatusForbidden},
 	"POST /api/invitations/accept":                                    {status: http.StatusUnauthorized},
 	"POST /api/orgs/{org}/spaces/{slug}/invitations":                  {status: http.StatusUnauthorized},
@@ -89,8 +91,9 @@ var linkGuestRouteTable = map[string]linkRouteExpectation{
 	// spends the credential rather than reshaping it, and it is the only way
 	// a guest on a borrowed browser can stop the cookie outliving the visit.
 	// It deletes the caller's own session_tokens row and nothing else.
-	"POST /api/me": {status: http.StatusForbidden},
-	"GET /api/me":  {status: http.StatusOK},
+	"POST /api/me/erase": {status: http.StatusForbidden},
+	"POST /api/me":       {status: http.StatusForbidden},
+	"GET /api/me":        {status: http.StatusOK},
 
 	// The frame itself carries no session data at all — it is a static
 	// document assembled from what the operator installed. With no PLUGIN_DIR

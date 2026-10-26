@@ -11,6 +11,7 @@ import {
   labelClass,
 } from "../components/Modal";
 import { DecksPanel } from "../components/DecksPanel";
+import { PrivacyRetentionPanel } from "../components/PrivacyRetentionPanel";
 import { StandupSchedulePanel } from "../components/StandupSchedulePanel";
 import { useCopy, useToast } from "../lib/ui";
 import { inviteLink } from "../lib/invite";
@@ -69,7 +70,7 @@ export function SpaceSettingsPage() {
 
   // Hiding a control is a courtesy; the server enforces the same rule and
   // answers 403 to a member who reaches the route another way.
-  const canManage = sp.members.find((m) => m.userId === me.data?.id)?.role === "owner";
+  const canManage = sp.canHost !== false && sp.members.find((m) => m.userId === me.data?.id)?.role === "owner";
 
   return (
     <AppShell
@@ -99,7 +100,7 @@ export function SpaceSettingsPage() {
 
         {!canManage ? (
           <p className="mt-6 rounded-card border border-line bg-surface px-5 py-4 text-sm text-ink-soft text-pretty">
-            Only an owner can manage this workspace. Ask one of them — the roster in
+            Only an owner can manage this workspace. Hosting access is also required. Ask one of them — the roster in
             the sidebar says who they are.
           </p>
         ) : (
@@ -126,6 +127,7 @@ export function SpaceSettingsPage() {
               onChanged={refresh}
               onError={say}
             />
+            <PrivacyRetentionPanel org={org} slug={sp.slug} />
             <SpaceNamePanel org={org} slug={sp.slug} name={sp.name} onChanged={refresh} onError={say} />
           </>
         )}
@@ -523,7 +525,8 @@ function DangerZone({
         <div className="mt-3">
           <p className="text-[13px] text-ink-soft text-pretty">
             This deletes {name} and every session, story and vote in it, for
-            everyone. It cannot be undone. Type <strong>{name}</strong> to
+            everyone in the active database. Backups and security logs may remain
+            until their separate expiry. It cannot be undone here. Type <strong>{name}</strong> to
             confirm.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -557,7 +560,8 @@ function DangerZone({
         <>
           <p className="mt-1 text-[13px] text-ink-soft text-pretty">
             Deleting takes the workspace and everything under it, for everybody.
-            There is no undo and no archive.
+            This removes meeting content from the active database. Backups and
+            security logs may remain until their separate expiry. There is no undo here.
           </p>
           <button className={buttonQuiet + " mt-3"} onClick={() => setConfirming(true)}>
             Delete this workspace

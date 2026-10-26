@@ -504,3 +504,72 @@ describe("ProfileDialog renaming", () => {
     expect(writes(fetchMock)).toHaveLength(0);
   });
 });
+
+describe("ProfileDialog privacy controls", () => {
+  it("explains the difference between profile erasure, shared content and recovery copies", async () => {
+    mockFetch();
+    renderApp(<ProfileDialog me={me} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Privacy and deletion" }));
+    expect(screen.getByText(/shared session and story content stays/i)).toBeTruthy();
+    expect(screen.getByText(/backups and security logs/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete my profile and personal contributions" })).toBeTruthy();
+  });
+
+  it("requires typed confirmation before erasing and preserves the identity after a refusal", async () => {
+    const fetchMock = vi.fn(async (path: string) => path === "/api/auth"
+      ? new Response(JSON.stringify({ mode: "open" }))
+      : new Response(JSON.stringify({ error: "promote another workspace owner first" }), { status: 409 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const close = vi.fn();
+    rememberOpenSession(me.name);
+    renderApp(<ProfileDialog me={me} onClose={close} />);
+    await userEvent.click(screen.getByRole("button", { name: "Privacy and deletion" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete my profile and personal contributions" }));
+    const destroy = screen.getByRole("button", { name: "Permanently erase my profile" }) as HTMLButtonElement;
+    expect(destroy.disabled).toBe(true);
+    expect(fetchMock.mock.calls.filter(([path]) => path === "/api/me/erase")).toHaveLength(0);
+    const confirmation = screen.getByRole("textbox", { name: "Type DELETE to confirm profile erasure" });
+    await userEvent.type(confirmation, "delete");
+    expect(destroy.disabled).toBe(true);
+    await userEvent.clear(confirmation);
+    await userEvent.type(confirmation, "DELETE");
+    await userEvent.click(destroy);
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "promote another workspace owner first");
+    expect(close).not.toHaveBeenCalled();
+    expect(localStorage.getItem("parley:last-name")).toBe(me.name);
+  });
+
+  it("clears app identity memories and cached meeting data only after erasure succeeds", async () => {
+    const fetchMock = vi.fn(async (path: string, _init?: RequestInit) => path === "/api/auth"
+      ? new Response(JSON.stringify({ mode: "open" }))
+      : new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    localStorage.setItem("parley:last-name", me.name);
+    sessionStorage.setItem("scrum-pro:invitation", "private invitation");
+    sessionStorage.setItem("parley:link-guest", "private guest");
+    localStorage.setItem("unrelated-app", "keep");
+    const close = vi.fn();
+    const { queryClient } = renderApp(<ProfileDialog me={me} onClose={close} />);
+    queryClient.setQueryData(["private-session"], { notes: "private notes" });
+    await userEvent.click(screen.getByRole("button", { name: "Privacy and deletion" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete my profile and personal contributions" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Type DELETE to confirm profile erasure" }), "DELETE");
+    await userEvent.click(screen.getByRole("button", { name: "Permanently erase my profile" }));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    const call = fetchMock.mock.calls.find(([path]) => path === "/api/me/erase");
+    expect(call?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({ confirm: "DELETE" });
+    expect(queryClient.getQueryData(["private-session"])).toBeUndefined();
+    expect(localStorage.getItem("parley:last-name")).toBeNull();
+    expect(sessionStorage.getItem("scrum-pro:invitation")).toBeNull();
+    expect(sessionStorage.getItem("parley:link-guest")).toBeNull();
+    expect(localStorage.getItem("unrelated-app")).toBe("keep");
+  });
+
+  it("does not offer account erasure to a session-link guest", async () => {
+    mockFetch();
+    renderApp(<ProfileDialog me={{ ...me, linkSessionId: "bound-room" }} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Privacy and deletion" }));
+    expect(screen.queryByRole("button", { name: "Delete my profile and personal contributions" })).toBeNull();
+  });
+});

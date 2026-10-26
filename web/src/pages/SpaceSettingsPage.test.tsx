@@ -30,6 +30,8 @@ let meBehavior: "ok" | "pending" | "error" = "ok";
 let schedule: unknown = null;
 // When set, the next schedule PUT is refused with this 400 message.
 let refuseSchedule = "";
+let retentionDays = 0;
+let refusePrivacy = "";
 const scheduleUrl = "/api/orgs/acme/spaces/platform-team/standup-schedule";
 
 vi.mock("../lib/api", async () => {
@@ -52,6 +54,13 @@ vi.mock("../lib/api", async () => {
         if (refuseSchedule) throw new actual.ApiError(400, refuseSchedule);
         schedule = body;
         return { schedule: body };
+      }
+      if (path.endsWith("/privacy")) {
+        if (method === "GET") return { retentionDays };
+        calls.push([method, path, body]);
+        if (refusePrivacy) throw new actual.ApiError(403, refusePrivacy);
+        retentionDays = (body as { retentionDays: number }).retentionDays;
+        return { retentionDays };
       }
       // The space page's kudos wall reads two lists, the wall and the letters
       // waiting for the viewer; answering either with the space view crashes
@@ -82,6 +91,8 @@ beforeEach(() => {
   meBehavior = "ok";
   schedule = null;
   refuseSchedule = "";
+  retentionDays = 0;
+  refusePrivacy = "";
 });
 
 afterEach(() => {
@@ -642,5 +653,53 @@ describe("SpaceSettingsPage standup schedule", () => {
     await userEvent.clear(zone);
     await userEvent.type(zone, "America/Chicago");
     expect(zone.value).toBe("America/Chicago");
+  });
+});
+
+
+describe("SpaceSettingsPage privacy retention", () => {
+  it("keeps automatic deletion off and requires an explicit save to opt in", async () => {
+    renderApp(routed, { route: "/o/acme/s/platform-team/settings" });
+    const field = await screen.findByRole("combobox", { name: "Delete ended sessions after" }) as HTMLSelectElement;
+    expect(field.value).toBe("0");
+    expect(screen.getByText(/active sessions are never deleted automatically/i)).toBeTruthy();
+    const save = screen.getByRole("button", { name: "Save retention" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    await waitFor(() => expect(field.disabled).toBe(false));
+    await userEvent.selectOptions(field, "7");
+    expect(calls.filter(([,path]) => path.endsWith("/privacy"))).toHaveLength(0);
+    await userEvent.click(save);
+    await waitFor(() => expect(calls).toContainEqual(["PUT", "/api/orgs/acme/spaces/platform-team/privacy", { retentionDays: 7 }]));
+    expect(await screen.findByText("Retention saved")).toBeTruthy();
+  });
+
+  it("shows a rejected save without claiming the policy changed", async () => {
+    refusePrivacy = "only a host who owns this workspace can change retention";
+    renderApp(routed, { route: "/o/acme/s/platform-team/settings" });
+    const field = await screen.findByRole("combobox", { name: "Delete ended sessions after" });
+    await waitFor(() => expect((field as HTMLSelectElement).disabled).toBe(false));
+    await userEvent.selectOptions(field, "30");
+    await userEvent.click(screen.getByRole("button", { name: "Save retention" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", refusePrivacy);
+    expect(screen.queryByText("Retention saved")).toBeNull();
+  });
+
+  it("does not fetch or expose retention to a non-owner", async () => {
+    view = { ...base, members: base.members?.map(m => ({ ...m, role: m.userId === "ada" ? "member" : "owner" })) } as SpaceView;
+    renderApp(routed, { route: "/o/acme/s/platform-team/settings" });
+    await screen.findByText(/Only an owner can manage this workspace/);
+    expect(screen.queryByRole("combobox", { name: "Delete ended sessions after" })).toBeNull();
+    expect(vi.mocked(api).mock.calls.filter(([, path]) => path.endsWith("/privacy"))).toHaveLength(0);
+  });
+});
+
+describe("SpaceSettingsPage hosting boundary", () => {
+  it("does not offer retention or deletion to an owner without current hosting access", async () => {
+    view = { ...base, canHost: false };
+    renderApp(routed, { route: "/o/acme/s/platform-team/settings" });
+    await screen.findByRole("link", { name: /Back to Platform Team/ });
+    expect(screen.queryByRole("combobox", { name: "Delete ended sessions after" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete this workspace" })).toBeNull();
+    expect(vi.mocked(api).mock.calls.filter(([, path]) => path.endsWith("/privacy"))).toHaveLength(0);
   });
 });

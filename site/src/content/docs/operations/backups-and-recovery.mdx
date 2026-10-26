@@ -5,10 +5,12 @@ description: Dump it, encrypt it, restore it, and the one command that deletes e
 
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 
-<VerifiedStamp source={["internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
+<VerifiedStamp version="unreleased" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "scripts/privacy-maintenance.py", "internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
 
-Nothing in Parley backs itself up. `pg_dump` is the whole story; there is no
-built-in scheduler, no retention policy, and no encryption unless you add one.
+The application does not schedule its own database backups. Use `pg_dump`,
+encrypt its output, and define operator custody and retention. The optional
+privacy-maintenance tool expires explicitly enrolled archives; it installs no
+backup or expiry schedule.
 
 ## Back up before every upgrade
 
@@ -207,3 +209,27 @@ post-backup changes, and revoke the upstream token when needed. Keep delivery
 paused until scope and keys are checked. Reconcile retained unknown identities
 against GitHub rather than clearing or recreating them. Never put reusable PATs
 in support artifacts, exports or restore logs.
+
+
+## Scrum Pro deletion recovery and expiry
+
+Migration 0061 adds minimal transactional deletion receipts and a stable database
+instance UUID. Before exposing a restored store, export/copy the latest private
+journal independently of the backup and replay it with all writers stopped.
+The cumulative journal must outlive any backup that can resurrect its records.
+Wrong-instance files and unresolved historical owner/admin handoffs fail closed.
+Receipts cover deletion, not every permission revocation or external effect.
+
+`scripts/privacy-maintenance.py export --journal <private-file>` atomically
+merges receipts into a 0600 journal. `replay --journal <private-file>
+--writers-stopped` validates and replays in one database transaction. A successful
+live deletion is not evidence that the later off-host journal export succeeded.
+Track that export/copy boundary. Historical backups predating the privacy metadata
+require verified operator reconciliation, not automatic adoption of a new UUID.
+
+The same tool supplies dry-run-first expiry for exact manifest-owned encrypted
+backup/rollback archives and closed JSON log archives. `--apply` is explicit;
+checksums, UTC expiry, ownership, file types and link/path protections are checked
+before deletion. This prepares an operator mechanism, not an installed production
+schedule or a blanket erasure guarantee. See `docs/privacy-operations.md` in the
+repository for the manifest schema, commands, boundaries and recovery procedure.

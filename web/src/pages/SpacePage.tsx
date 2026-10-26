@@ -1159,8 +1159,12 @@ function RoomManageModal({
       {confirming ? (
         <div>
           <p className="text-[13px] text-ink-soft text-pretty">
-            This deletes {room.title} and everything estimated or said in it,
-            for everyone. It cannot be undone.
+            This deletes {room.title} for everyone. It cannot be undone here.
+            This removes the session's stories,
+            votes and standup entries from the active database. Workspace-level
+            commitments and kudos stay until the workspace is deleted. Backups and
+            security logs may remain until their separate expiry. Ending a session
+            instead keeps its history.
           </p>
           <div className="mt-3 flex justify-end gap-3">
             <button className={buttonQuiet} disabled={busy} onClick={() => setConfirming(false)}>

@@ -478,6 +478,7 @@ func main() {
 	// resolving the moment it lapses, but without this nothing ever deletes
 	// it, and the table only grows.
 	go sessionSweeper(pool, cfg).RunSessionSweep(ctx, time.Hour, log)
+	go (&store.Privacy{Pool: pool}).RunRetention(ctx, time.Minute, log)
 
 	// The bundle store, then the host, and with it the outbox and job
 	// handlers. The host runs whether or not PLUGIN_DIR is set: bundles live

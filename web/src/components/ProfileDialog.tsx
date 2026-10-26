@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, errorText, type Me } from "../lib/api";
 import { useToast } from "../lib/ui";
 import { Avatar } from "./Avatar";
+import { ProfilePrivacy } from "./ProfilePrivacy";
 import { avatarIconIds, avatarIconLabels } from "./avatarIcons";
 import { buttonPrimary, buttonQuiet, ErrorRow, inputClass, labelClass, Modal } from "./Modal";
 import { useAuthMode, clearSessionMemory } from "./NameGate";
@@ -266,6 +267,7 @@ export function ProfileDialog({ me, onClose }: { me: Me; onClose: () => void }) 
           </button>
         </div>
       </div>
+      <ProfilePrivacy me={me} onErased={onClose} />
     </Modal>
   );
 }

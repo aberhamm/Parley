@@ -2030,6 +2030,37 @@ mutate 'scheduled host revocation row locks' \
  'TestScheduleHostRevocationRace' \
  schedule.go 'for share of om,h,m' ''
 
+
+# BEGIN SCRUM PRIVACY GUARDS
+restore_all
+target internal/store
+mutate 'retention policy requires a current invited host' \
+ 'TestPrivacyRetentionStoreRechecksAuthority' \
+ privacy.go 'if inviteOnly {' 'if false && inviteOnly {'
+
+restore_all
+mutate 'retention policy requires current workspace ownership' \
+ 'TestPrivacyRetentionStoreRechecksAuthority' \
+ privacy.go " and m.role='owner'" ''
+
+restore_all
+mutate 'automatic retention remains opt in' \
+ 'TestPrivacySweepDeletesOnlyExpiredEndedSessionsAndRelatedData' \
+ privacy.go 'where retention_days>0 and exists' 'where true and exists'
+
+restore_all
+target web/src web
+mutate 'profile erasure requires typed DELETE confirmation' \
+ 'src/components/ProfileDialog.test.tsx::requires typed confirmation before erasing' \
+ components/ProfilePrivacy.tsx 'typed !== "DELETE"' 'false' \
+ components/ProfilePrivacy.tsx 'typed !== "DELETE"' 'false'
+
+restore_all
+mutate 'workspace privacy controls require current hosting access' \
+ 'src/pages/SpaceSettingsPage.test.tsx::does not offer retention or deletion to an owner without current hosting access' \
+ pages/SpaceSettingsPage.tsx 'sp.canHost !== false && ' ''
+# END SCRUM PRIVACY GUARDS
+
 restore_all
 
 echo

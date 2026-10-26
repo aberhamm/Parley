@@ -599,6 +599,7 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 		// nothing else — votes, standup entries and CSV attribution survive
 		// leaving exactly as they survive revocation.
 		r.Delete("/me", a.handleDeleteMe)
+		r.With(rejectLinkPrincipal, RequireUser).Post("/me/erase", a.handleEraseProfile)
 		// Its own route, and permitted under both auth modes: choosing an
 		// avatar is not choosing a name, so the provider owning names in OIDC
 		// mode does not reach it. It answers 401 itself.
@@ -720,6 +721,8 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 				// member-level controls. A link guest gets 404 here, from
 				// requireOrgMember: it belongs to no org.
 				r.Patch("/spaces/{slug}/visibility", a.handleSetVisibility)
+				r.Get("/spaces/{slug}/privacy", a.handleGetPrivacy)
+				r.Put("/spaces/{slug}/privacy", a.handlePutPrivacy)
 			})
 
 			// A space's standup schedule. Members may read it; only an owner
