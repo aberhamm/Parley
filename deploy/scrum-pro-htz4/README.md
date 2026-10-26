@@ -2,9 +2,9 @@
 
 Production: https://scrum.matthew.systems
 
-Application release: `88049156947c316ce705c4e466250bd73c8e9cae`.
+Application release: `873780b2a584dd27dc8e830a6c35fbf4e7f99321`.
 Linux/amd64 OCI image index digest:
-`sha256:80a644aa393bcfdda9ffd002d7faa81d4e03b48fd403438066f5e2fecc9cf8ee`.
+`sha256:c94af0b9ce4d7e5865ae088b128ad597c70e43d598a270351ea9b3d32adebd76`.
 The image was built on the Mac Studio, saved and loaded over SSH, and verified
 on Hetzner by digest and architecture. It is not published to a registry.
 The deployment Dockerfile uses native build stages and cross-compiles the same
@@ -36,9 +36,12 @@ snippet or routing change is required for this deployment.
 
 ## Resources and operations
 
-All services have `restart: unless-stopped`, health checks, bounded JSON logs
-(10 MB × 3 per service), explicit memory limits, dropped capabilities and
-no-new-privileges. App and gateway/tunnel filesystems are read-only.
+All services retain `restart: unless-stopped`, health checks, explicit memory
+limits, dropped capabilities and no-new-privileges. The privacy deployment
+replaces Docker JSON-file logging with the dedicated private syslog path below;
+its size rotation and seven-day expiry are separate controls. App and gateway/
+tunnel filesystems are read-only. The table is the historical migration sample,
+not a privacy-release load-test result.
 
 | Service | Memory limit | Initial observed use |
 | --- | --- | --- |
@@ -81,8 +84,9 @@ The matching encryption key is held separately, mode 0600, on the Studio at
 `/Users/matthew/.config/scrum-pro-recovery/backup-20261022.key`.
 It was not copied to Hetzner or committed. Matthew controls root SSH and the
 Studio account. A loss of both Studio recovery custody and the active database
-would require another recovery source; these are migration backups, not an
-ongoing scheduled backup service.
+would require another recovery source. These files are migration backups;
+recurring full-database NAS backups are managed separately. Enrolled encrypted
+archives have a 30-day expiry; the NAS Scrum-only dump expiry is described below.
 
 Decrypt on the Studio and stream through SSH, keeping all app replicas and
 the connector stopped during a restore. Supply the exact encrypted file:
@@ -101,22 +105,30 @@ copy while another host accepts writes. Reconcile revocations/deletions and
 queued jobs if restoring an older backup, as described in the application's
 backups-and-recovery documentation.
 
-The historical rollback instructions below predate invitation migration 0060.
-For the current release, use the invitation rollback procedure at the end of
-this document. An old binary cannot start against schema 60.
+The historical rollback instructions below predate privacy schema 63. Use the
+privacy recovery procedure at the end of this document for the privacy release.
+An older binary cannot start against a newer schema, and restoring a database
+requires the latest independent deletion journal before exposure.
 
 ## Cutover and rollback, 2026-10-22
 
 Cutover completed at approximately 23:58 UTC on 2026-10-21 (01:58 Berlin on
 2026-10-22). The old Studio connector, public app, private gateway and local
 preview were stopped before the final dump. The original Studio Postgres
-container/volume remains intact. The same Cloudflare Tunnel then started on
+volume was retained; its old container shells and Docker log caches have since
+been removed after a verified backup. The same Cloudflare Tunnel then started on
 Hetzner. Cloudflare reported healthy with origin IP only `46.224.225.122`.
 DNS and ingress were unchanged.
 
 Old runtime: `/Users/matthew/.local/share/parley-local/`.
 Old database volume: `parley-local_parley-data`.
-Old app image: `parley-local:scrum-pro-preview` (linux/arm64).
+Historical app image: `parley-local:scrum-pro-preview` (linux/arm64).
+The frozen volume has an explicit expiry of 2026-11-20 23:58 UTC, 30 days after
+the original cutover. It is stale and is not the current production database.
+The original raw runtime configuration remains protected for signing/key
+recovery custody; it is not scheduled for deletion. Its encrypted
+`legacy-studio-config-20261022.tar.gz.enc` archive is separately enrolled with
+the original cutover plus 30-day expiry.
 Do not run the old `manage.sh up -d` during normal operation: that would
 reactivate the Studio connector and split traffic across separate databases.
 
@@ -163,8 +175,10 @@ now that verification and public traffic have reached Hetzner.
 - A fresh post-migration encrypted backup was copied off-host, checksummed
   on both hosts, restored into a separate scratch database, and checked for
   the original workspace/session counts. The scratch database was removed.
-- Original Studio data and stopped app/tunnel containers are retained for
-  rollback. Migration backups are held on both hosts.
+- At migration completion the original Studio data and stopped app/tunnel
+  containers were retained for rollback. The later privacy rollout removed the
+  old container shells/log caches after verified backup and enrolled the frozen
+  volume for its 30-day expiry. Migration archives have explicit retention.
 
 Evidence and screenshots are kept outside Git in the protected Studio
 migration directory. No application behavior or database schema changed.
@@ -245,7 +259,7 @@ OOM kills or automatic restarts. This is a small-session sample, not a load test
 The dedicated tunnel/hostname and routing configuration remain unchanged. Shared
 host app container IDs and network attachments matched before and after cutover.
 
-### Current rollback procedure
+### Invitation-era rollback procedure (historical)
 
 Do not merely select the previous image: it refuses schema 60. Keep public writers
 stopped and use either a migration-compatible binary or the matching schema 59
@@ -254,3 +268,178 @@ before any restore. Reconcile later writes, accepted/revoked invitations, hostin
 grants and memberships before exposing a restored store. Restoring the pre-upgrade
 backup loses later writes. Setting INVITE_ONLY=false reopens public hosting and
 is not a security-preserving rollback. The deployment operator owns rollback.
+
+
+## Privacy release operations, 27 October 2026
+
+Privacy application source: `873780b2a584dd27dc8e830a6c35fbf4e7f99321`.
+Linux/amd64 image:
+`sha256:c94af0b9ce4d7e5865ae088b128ad597c70e43d598a270351ea9b3d32adebd76`.
+Migrations 0061 through 0063 add opt-in ended-session retention, profile erasure,
+link-guest erasure and minimal deletion receipts. Cutover and the live privacy verification completed on 27 October 2026 at
+https://scrum.matthew.systems, with database schema 63. The protected evidence
+directory is `/Users/matthew/.local/share/scrum-privacy-production-20261027/`.
+The application source/image above are distinct from the later operator/docs
+commit, which does not rebuild or change the served application.
+
+### Dedicated private logs and startup
+
+All four Scrum containers use the existing dedicated network and Cloudflare
+Tunnel. Their syslog driver sends RFC5424micro records to
+`unixgram:///run/scrum-pro-logging/syslog.sock`, tags `{{.Name}}`, with a 1 MiB
+nonblocking buffer and Docker's local log cache disabled. `docker logs` is no
+longer the operational log source. Recreating the old JSON-file containers
+removes those obsolete container log caches; the helper never prunes arbitrary
+Docker storage paths.
+
+`scrum-pro-logging.service` runs a separate rsyslog process with the system
+socket disabled. It accepts only the four Scrum APP-NAMEs and writes root-private
+UTC daily files `/var/log/scrum-pro/scrum-pro-YYYY-MM-DD.jsonl`, mode 0600 in a
+0700 directory. It uses the standard RFC5424 parser: `UseSpecialParser=off`,
+`ParseHostname=on`, and an anchored `$app-name` whitelist. It does not replace
+shared rsyslog, Caddy, or any other application's logger.
+
+The dedicated unit has a 32 MiB memory limit, an empty capability bounding set,
+AF_UNIX-only networking and restricted writable paths. Its per-unit AppArmor
+profile is `unconfined` because the host's binary-attached rsyslog profile covers
+only shared paths; the global AppArmor profile is not changed. The unit starts
+before Docker, waits at most ten seconds for its socket and makes it mode 0600.
+`scrum-pro-stack.service` starts only this Compose project after Docker and the
+logger. `PartOf` propagates Docker/logger restarts to this stack. The Docker Wants link is scoped to this logger; other app units are not
+edited. Validate configuration and the dependency graph before activation.
+
+Input rate limiting is 200 messages per five seconds per sender across all
+severities. Docker's daemon is the expected sender for these four containers.
+Bursts or buffer pressure can drop diagnostics; this is not a complete audit
+history guarantee. Messages are capped at 16 KiB. The dedicated logrotate
+configuration runs each minute with its own private state file, `copytruncate`,
+a 10 MiB size threshold and three rotations. The threshold can be exceeded
+between runs, and copytruncate can lose messages during rotation. Closed UTC
+files and rotations expire seven days from their filename's UTC date. Today's
+files are not enrolled while active. No shared logrotate configuration or timer
+is changed.
+
+### Journal custody and three independent expiry scopes
+
+The host's `scrum-pro-privacy-maintenance.timer` runs every minute. Its fixed
+Docker/psql adapter reads only `scrum-pro-db-1`; no database password is placed
+in arguments. It cumulatively exports the 0600 journal to
+`/opt/apps/scrum-pro/privacy/journal/deletions.json`, performs a dry validation
+before deletion, runs dedicated log rotation, and applies log expiry and the
+explicit 30-day encrypted-backup inventory. Host backup enrollment is limited to
+named `.dump.enc` and `.tar.gz.enc` files in `/opt/apps/scrum-pro/backups` with
+checksum, original creation time and exactly creation plus 30 days. Copying or
+redeploying an archive does not restart its retention clock.
+
+The root-private `/opt/apps/scrum-pro/privacy/status.json` reports only instance,
+time, journal checksum/count and aggregate expiry results. Any maintenance
+failure sets failed status and a nonzero exit. Status inspection is available;
+these tools do not install an alert integration. A successful API deletion does
+not prove the subsequent off-host export has completed.
+
+On the Studio, LaunchDaemon `com.matthew.scrum-pro-privacy` runs every minute as
+`matthew`. It lives under `/Users/matthew/.local/share/scrum-pro-privacy`, using
+its protected `config.json`, `status.json` and `journal/deletions.json`. It pulls
+the fixed host journal/status over SSH, checks private file custody, instance,
+checksum, receipt count and freshness (at most five minutes, with 60 seconds
+future-clock tolerance), then merges receipts without truncating prior
+history. It mirrors the cumulative journal to the NAS and checks acknowledgment.
+Host export and Studio pull are serial minute phases: end-to-end custody is
+typically within two minutes plus execution/jitter, not a one-minute or
+synchronous guarantee.
+Previously verified receipts remain locally available on a failed pull; status
+still reports failure. Known Studio archives and frozen-volume retirement are
+processed independently of pull failure, using validated local enrollment.
+
+Studio encrypted deployment/rollback archives have expiry deadlines no later
+than 30 days after original creation; explicitly inventoried closed logs are
+renamed `.archived.log` with deadlines no later than seven days. Expiry runs on
+the next successful maintenance pass after a deadline. Active preview/server logs are not enrolled as closed
+archives. The manifests restrict deletion to named, checksum-matching artifacts
+inside the listed Scrum custody directories. Raw signing/key-recovery runtime
+configuration is not claimed to be expired by these archive rules.
+
+NAS custody is `/volume1/backups/scrum-pro-privacy/journal/deletions.json`.
+The independent root cron entry runs every minute from `/etc/crontab`:
+
+```cron
+* * * * * root /usr/bin/python3 /volume1/backups/scrum-pro-privacy/privacy-nas.py expire --apply >/dev/null 2>&1 # scrum-pro-privacy-expiry
+```
+
+It scans only valid dated directories under `/volume1/backups/htz-4g-nbg` and
+expires only the exact root-private custom-format `scrum-pro-parley.dump` when
+its recorded file mtime is 30 days old. It validates the PostgreSQL header,
+computes a checksum and rechecks file identity before unlinking, preserves unexpired dumps and
+leaves other apps' files, shared config tarballs and directories untouched.
+This NAS dump is protected as a secret; it is not described as an encrypted
+archive. NAS expiry does not depend on the Studio's sync or the host exporter
+succeeding. Its aggregate `expiry-status.json` and minimal audit remain under
+NAS privacy custody. Both NAS and Studio journal receipts must outlive every backup
+that could resurrect their objects; neither journal is expired by these tools.
+
+### Privacy recovery and rollback at schema 63
+
+Keep all writers, schedulers, workers and public ingress stopped while restoring.
+Use a schema-63-compatible binary and replay the latest independently held
+cumulative deletion journal before reopening the store. Verify its deployment
+instance and freshness, reconcile any historical owner/admin handoff, and also
+reconcile revocations and permissions not represented by deletion receipts.
+A wrong instance, malformed journal, stale/missing custody or unresolved handoff
+is a reason to keep the service isolated, not to bypass checks.
+
+The invitation image at schema 60 cannot run directly against schema 63.
+Restoring a pre-upgrade backup still requires a schema-63-compatible migration
+and binary, plus the latest erasure decisions before exposure. It is recovery
+from an older data snapshot, not permission to serve with the former binary.
+Merely selecting the old image or setting INVITE_ONLY=false is not a
+privacy-preserving rollback. Preserve a fresh protected backup before
+starting recovery. The former Studio frozen database is stale and expires on
+2026-11-20 at 23:58 UTC; do not activate its old connector or mistake it for a
+current rollback store. Original raw runtime configuration remains separate
+protected recovery-key custody.
+
+Neither row deletion nor filesystem unlink is a physical media-sanitization
+claim. External exports/integrations, arbitrary plugin copies, shared-content
+mentions, analytics retained elsewhere and independent shared backup artifacts
+need their own reviewed treatment. See `docs/privacy-operations.md` for operator
+commands and the validation boundaries. Keep live rollout/backup/restore evidence
+in the protected production release directory, outside Git.
+
+
+### Completed privacy rollout verification
+
+The deployed source, immutable image digest, schema 63 and HTTPS readiness were
+verified. Two separate browser identities cast distinct votes and both received
+live reveal updates through WSS. Host retention changes returned 200, participant
+changes returned 403 and the last-owner profile erasure was refused with 409.
+The profile erasure UI removed its personal rows while preserving the other
+participant's vote and shared story. Ending/erasing the temporary workspace,
+its two sessions and the test host profile produced five deletion receipts.
+
+A full restart of the owned Scrum stack, including Postgres, preserved the
+snapshots, retention policy, deletion receipts and instance UUID. Shared host
+application container IDs/network attachments stayed unchanged. All owned
+services are healthy; no OOM kill or automatic restart was observed. This is a
+scoped stack restart and dependency validation, not a claim of a host reboot
+recovery test. Restarting only the dedicated logger also automatically restarted
+the dependent stack through `PartOf`, without a manual application start; data
+and receipts were preserved.
+
+Without manually kicking their schedules, the host and Studio minute jobs
+copied all five receipts to the host/Studio/NAS journals with identical bytes.
+The independent NAS expiry job also reported successful status. This verifies
+the scheduled path for the observed run; ongoing failures still require status
+inspection, and no alert integration is installed.
+
+A real pre-erasure production snapshot was fully restored into an isolated local
+database. Replaying the latest automatically synchronized Studio journal removed
+the temporary workspace, sessions, profiles and personal contributions again.
+The second replay was idempotent, and the six original protected table hashes
+remained unchanged. A fresh postdeployment backup was copied off-host and fully
+restored at schema 63. The latest Python 3.14 operator suites passed 57 checks,
+plus all 18 foundation maintenance tests. The docs site build passed separately.
+
+Post-QA native memory sample: app 5.59 MiB + DB 31.84 MiB = 37.43 MiB within the
+128 + 384 MiB caps; gateway 10.14 MiB, tunnel 16.87 MiB and dedicated logger about
+1.1 MiB were within their 48/64/32 MiB limits. These are small-session samples,
+not load-test results. Operator maintenance has its own explicit memory limit.

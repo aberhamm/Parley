@@ -5,12 +5,13 @@ description: Dump it, encrypt it, restore it, and the one command that deletes e
 
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "scripts/privacy-maintenance.py", "internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
+<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
 
 The application does not schedule its own database backups. Use `pg_dump`,
 encrypt its output, and define operator custody and retention. The optional
-privacy-maintenance tool expires explicitly enrolled archives; it installs no
-backup or expiry schedule.
+generic privacy-maintenance tool expires explicitly enrolled archives without
+installing a schedule. The Scrum Pro deployment additionally supplies scoped
+host/Studio scheduling and an independent NAS expiry job, described below.
 
 ## Back up before every upgrade
 
@@ -228,8 +229,57 @@ Track that export/copy boundary. Historical backups predating the privacy metada
 require verified operator reconciliation, not automatic adoption of a new UUID.
 
 The same tool supplies dry-run-first expiry for exact manifest-owned encrypted
-backup/rollback archives and closed JSON log archives. `--apply` is explicit;
+backup/rollback archives and closed JSON or explicitly renamed `.archived.log`
+archives. `--apply` is explicit;
 checksums, UTC expiry, ownership, file types and link/path protections are checked
-before deletion. This prepares an operator mechanism, not an installed production
-schedule or a blanket erasure guarantee. See `docs/privacy-operations.md` in the
+before deletion. The generic CLI alone does not install scheduling or provide a
+blanket erasure guarantee. See `docs/privacy-operations.md` in the
 repository for the manifest schema, commands, boundaries and recovery procedure.
+
+
+### Scoped Scrum Pro deployment policy
+
+The deployment supplies `scrum-pro-logging.service`, a dedicated private syslog
+receiver, plus `scrum-pro-privacy-maintenance.timer` every minute for cumulative
+journal export, private logrotate and expiry. Logging uses RFC5424 APP-NAME
+filtering, 0700/0600 custody, seven-day closed UTC files, three rotations and a
+10 MiB rotation threshold. Nonblocking/burst limits can drop messages; the
+threshold can be exceeded between runs. The host's encrypted backup inventory
+uses exactly original creation plus 30 days.
+
+The Studio LaunchDaemon `com.matthew.scrum-pro-privacy` runs each minute, checks
+source checksum/instance/count/freshness, cumulatively merges the journal and
+mirrors it to private NAS custody. Host export and Studio pull are serial minute
+phases, typically up to two minutes plus execution/jitter end to end. Known
+Studio encrypted archives have a
+30-day policy, historical `.archived.log` files have seven days, and a failed
+pull does not extend an already-enrolled local artifact's expiry. Journals are
+not subject to content expiry and must outlive recoverable older content.
+
+An independent NAS root cron runs every minute for the exact
+`htz-4g-nbg/<dated-directory>/scrum-pro-parley.dump` only. It uses the file's
+recorded mtime for its 30-day cutoff, validates the private custom-format file
+and its identity before unlinking, and leaves shared config archives, other
+apps' files and snapshot directories untouched. A failed host export or Studio
+pull does not suspend this independently scheduled NAS dump expiry.
+
+These are scheduled policies, enforced on the next successful pass after a
+deadline. Inspect source-export, Studio sync/expiry and NAS expiry status
+separately. Before reopening a restored store, obtain the latest complete
+independent journal and replay it with writers stopped. The privacy release
+requires schema 63; a pre-privacy schema-60 image is not a compatible recovery
+binary. Restoring a pre-upgrade dump still requires a compatible migration path
+and the latest erasure/permission reconciliation before any public access.
+
+The former Studio container shells and log caches were removed after verified
+backup. Its frozen rollback volume is enrolled to expire November 20, 2026 at
+23:58 UTC. Raw signing/key-recovery runtime configuration remains protected
+custody; its encrypted legacy configuration archives have separate 30-day
+expiry. This distinction is not a promise to erase every configuration/key
+copy or physically sanitize storage media. See `docs/privacy-operations.md`
+and the deployment README for exact custody paths and commands. The 27 October 2026 rollout record verifies live privacy QA, restart
+persistence, scheduled five-receipt journal convergence and a real restored
+production snapshot reconciled through the automatically synced journal, with
+idempotent replay and unrelated data preserved. A new off-host postdeploy backup
+was fully restored at schema 63. These executed checks do not prove every future
+maintenance run or a host reboot recovery drill.

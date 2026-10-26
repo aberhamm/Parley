@@ -1,0 +1,24 @@
+[Unit]
+Description=Scrum Pro application stack
+Requires=docker.service scrum-pro-logging.service
+PartOf=docker.service scrum-pro-logging.service
+After=docker.service scrum-pro-logging.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/apps/scrum-pro
+ExecStart=/opt/apps/scrum-pro/manage.sh up -d --pull never --wait --wait-timeout 120
+ExecStop=/opt/apps/scrum-pro/manage.sh stop
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=180
+TimeoutStopSec=90
+UMask=0077
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

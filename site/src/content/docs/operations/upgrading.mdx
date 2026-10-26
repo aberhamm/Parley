@@ -5,7 +5,7 @@ description: Moving Parley forward, and why rolling back is not always safe.
 
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/db/migrations/0060_host_invitations.sql", "internal/store/invitations.go", "internal/db/migrate.go", "internal/db/migrations/0052_poker_splits.sql", "internal/db/migrations/0053_poker_dependencies.sql", "internal/db/migrations/0054_poker_estimate_scope.sql", "internal/db/migrations/0058_poker_parked_drafts.sql", "internal/db/migrations/0059_poker_parent_estimate.sql", "internal/poker/splits.go", "internal/poker/rounds.go", "internal/poker/dependencies.go"]} />
+<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0060_host_invitations.sql", "internal/store/invitations.go", "internal/db/migrate.go", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "internal/db/migrations/0052_poker_splits.sql", "internal/db/migrations/0053_poker_dependencies.sql", "internal/db/migrations/0054_poker_estimate_scope.sql", "internal/db/migrations/0058_poker_parked_drafts.sql", "internal/db/migrations/0059_poker_parent_estimate.sql", "internal/poker/splits.go", "internal/poker/rounds.go", "internal/poker/dependencies.go"]} />
 
 ## Parley
 
@@ -29,6 +29,41 @@ Rolling *back* an image is only safe if the newer version didn't add
 migrations. If it did, Parley refuses to start and says so, rather than running
 against a schema it doesn't understand. Restore from a
 [backup](/operations/backups-and-recovery/) instead.
+
+
+## Scrum Pro privacy upgrade to schema 63
+
+The privacy release adds migrations 0061 through 0063 for ended-session
+retention, profile erasure, link-guest erasure and minimal deletion receipts.
+Automatic ended-session deletion remains opt-in; existing workspaces default to
+off. A shorter selected period also applies to already-ended sessions.
+
+Take and restore-check a fresh protected backup, preserve signing/session and
+encryption-key custody, and stop old writers before migrating. The deployment
+also supplies scoped backup/log expiry and independent off-host cumulative
+journal custody. Confirm the host exporter, Studio mirror and independent NAS
+expiry status are current; source configuration alone does not prove those
+jobs executed.
+
+After migration, the former schema-60 invitation image refuses the newer
+database. Use a schema-63-compatible recovery binary. Restoring an older dump
+still requires the compatible schema, the latest independently held deletion
+journal and reconciliation of later ownership handoffs, revocations and grants
+before exposure. A wrong instance or unresolved handoff fails closed. The
+journal is not a general permission-change log, and it must outlive all backups
+that can resurrect its erased objects.
+
+The deployment policy is 30 days for enrolled encrypted backups/rollback
+archives and exact NAS Scrum database dumps, seven days for eligible private or
+explicitly closed logs, with deletion on the next successful maintenance pass.
+The stale former Studio volume is enrolled for November 20, 2026 at 23:58 UTC;
+its old container shells/log caches were removed after verified backup. Raw
+runtime signing/key-recovery configuration remains protected custody rather
+than being swept as content. See [Backups and recovery](/operations/backups-and-recovery/)
+and the deployment runbook for commands, scopes and remaining external-copy
+boundaries. The operator's 27 October 2026 record verifies application cutover, live
+privacy QA, scoped restart persistence, scheduled journal convergence and the
+backup/replay recovery drill; ongoing freshness still needs status inspection.
 
 ## Scrum Pro invitation-only upgrade
 

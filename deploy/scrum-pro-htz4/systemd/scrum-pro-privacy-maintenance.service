@@ -1,0 +1,24 @@
+[Unit]
+Description=Export Scrum Pro deletion journal and enforce enrolled archive expiry
+Requires=docker.service scrum-pro-logging.service
+After=docker.service scrum-pro-logging.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+Environment=TZ=UTC
+ExecStart=/usr/bin/python3 /opt/apps/scrum-pro/privacy/privacy-host.py run --apply
+TimeoutStartSec=120
+MemoryMax=96M
+TasksMax=24
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/apps/scrum-pro/privacy /opt/apps/scrum-pro/backups /var/log/scrum-pro
+# DockerSQL uses only the fixed local database container and Unix socket.
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=null
+StandardError=null

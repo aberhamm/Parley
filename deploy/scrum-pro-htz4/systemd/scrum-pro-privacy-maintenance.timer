@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Scrum Pro private deletion journal and retention every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=scrum-pro-privacy-maintenance.service
+
+[Install]
+WantedBy=timers.target

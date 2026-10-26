@@ -219,6 +219,23 @@ class ArtifactTests(unittest.TestCase):
             self.assertEqual(result[0]["status"], "deleted")
             self.assertFalse((root / "container-json.log.1").exists())
 
+    def test_explicit_closed_plain_archive_expires_but_active_plain_logs_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.setup_artifacts(root)
+            (root / "old.dump.enc").rename(root / "readiness.archived.log")
+            manifest["artifacts"][0].update(path="readiness.archived.log", kind="log")
+            result = privacy.expire_artifacts(root, manifest, apply=True, now=NOW)
+            self.assertEqual(result[0]["status"], "deleted")
+            self.assertFalse((root / "readiness.archived.log").exists())
+        for name in ["server.log", "preview.log", "container-json.log", "ordinary.log"]:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                manifest = self.setup_artifacts(root)
+                manifest["artifacts"][0].update(path=name, kind="log")
+                with self.assertRaises(ValueError):
+                    privacy.expire_artifacts(root, manifest, apply=True, now=NOW)
+
 
 if __name__ == "__main__":
     unittest.main()

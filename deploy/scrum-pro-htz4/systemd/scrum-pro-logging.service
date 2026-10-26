@@ -1,0 +1,40 @@
+[Unit]
+Description=Dedicated Scrum Pro private syslog receiver
+Before=docker.service scrum-pro-privacy-maintenance.service
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+Environment=TZ=UTC
+RuntimeDirectory=scrum-pro-logging
+RuntimeDirectoryMode=0700
+LogsDirectory=scrum-pro
+LogsDirectoryMode=0700
+StateDirectory=scrum-pro-logging
+StateDirectoryMode=0700
+ExecStartPre=/usr/sbin/rsyslogd -N1 -f /opt/apps/scrum-pro/privacy/rsyslog-scrum-pro.conf
+ExecStart=/usr/sbin/rsyslogd -n -i /run/scrum-pro-logging/rsyslog.pid -f /opt/apps/scrum-pro/privacy/rsyslog-scrum-pro.conf
+ExecStartPost=/usr/bin/timeout 10s /bin/sh -c 'until [ -S /run/scrum-pro-logging/syslog.sock ]; do /bin/sleep 0.1; done; /bin/chmod 0600 /run/scrum-pro-logging/syslog.sock'
+Restart=always
+RestartSec=2s
+MemoryMax=32M
+TasksMax=16
+# The host's binary-attached rsyslog profile covers shared paths only. This
+# override applies solely to this instance; the host profile is not edited.
+AppArmorProfile=unconfined
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/scrum-pro-logging /var/log/scrum-pro /var/lib/scrum-pro-logging
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target docker.service

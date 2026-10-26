@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="unreleased" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -81,7 +81,7 @@ and describe the data they remove from the active application database.
   { name: "Workspace and session deletion", status: "built", detail: "Workspace-owner controls remove sessions or entire workspaces from the active database. Session deletion removes stories, votes, standup entries, session links and presence. Workspace-level commitments and kudos survive session-only deletion and are removed by workspace deletion or relevant profile erasure. Link-guest profiles are erased when their session is deleted." },
   { name: "Expired sign-in cleanup", status: "built", detail: "Expired session_tokens are swept hourly. Expiry of a sign-in does not remove the profile or meeting history." },
   { name: "Recovery deletion journal", status: "built", detail: "Minimal object UUID/kind/time receipts commit with deletions. Operators export a cumulative private journal outside database backups and replay it before exposing a restored store. Until the export is independently copied off-host, disaster recovery may lack the newest decisions. A wrong instance or unresolved historical ownership handoff fails closed." },
-  { name: "Backup and log expiry", status: "built", detail: "The operator tool validates an exact checksum-pinned artifact manifest, previews expiry by default and removes only explicitly enrolled expired backup/rollback archives or closed log archives with --apply. It does not install scheduling, prune arbitrary snapshots, or alter active Docker logs. Deployment policies and scheduling must be configured and tested separately." },
+  { name: "Backup and log expiry", status: "built", detail: "The generic tool previews exact manifest-owned expiry by default. Scrum Pro deployment helpers add scoped minute scheduling: 30-day encrypted backup/rollback archives, seven-day private/closed logs, and exact 30-day NAS Scrum dumps. Separate cumulative journal custody is mirrored to the Studio and NAS. These tools do not prune arbitrary shared snapshots or other apps, and their freshness/status must be verified operationally." },
   { name: "Content encryption at rest", status: "not-built", detail: "Meeting content and passcodes are not encrypted by the application. Use encrypted storage and protect database backups and recovery keys. Unlinking a file or deleting a database row is not a claim of physical storage sanitization." },
 ]} />
 
@@ -100,6 +100,41 @@ Security/audit logs, analytics, exports, backups, external webhooks/provider
 copies and arbitrary plugin storage are outside self-service erasure. No promise
 of immediate deletion of every copy is made. Do not tell users a fixed backup/log
 expiry until the deployment actually enforces and verifies that policy.
+
+
+## Scrum Pro deployment retention
+
+The Scrum Pro deployment configuration defines a 30-day retention period for
+explicitly enrolled encrypted deployment/rollback archives on the application
+host and Studio. The NAS has an independent minute job for the exact Scrum
+PostgreSQL dump in each dated backup directory, based on its recorded age;
+shared tarballs and other applications' artifacts are outside that job.
+
+Private application/DB/gateway/tunnel logs use a separate, root-private syslog
+receiver with UTC daily files, size rotation and seven-day closed-file expiry.
+Explicitly inventoried historical closed logs use the same seven-day policy.
+Active logs are not treated as closed archives. Burst rate limits and
+nonblocking buffers can drop diagnostics, and size rotation thresholds may be
+exceeded between minute runs. A log file is not a complete audit history.
+
+Expiry occurs on the next successful maintenance pass after a declared
+deadline. A scheduled policy is not proof of a successful run during an outage.
+Operators inspect host, Studio and NAS status independently. The host exports
+deletion receipts each minute, the Studio merges them each minute and mirrors
+them to the NAS; this is asynchronous custody with a measurable gap, not a
+synchronous off-host guarantee attached to an API deletion response. The two
+serial minute phases typically take up to two minutes plus execution/jitter.
+
+Minimal journals are not expired by content policies because they are needed to
+reapply deletion after recovery. The former Studio frozen database volume has a
+declared expiry of November 20, 2026 at 23:58 UTC; its old container shells and
+log caches were removed after verified backup. Protected raw runtime
+configuration and signing/encryption keys remain recovery dependencies, with
+separately enrolled encrypted config archives. They are not represented as
+meeting-content erasure. The operator's 27 October 2026 release record verifies deployment, two-browser
+live updates, privacy authorization/erasure, restart persistence, scheduled
+journal convergence and a real backup/replay drill. Continued job freshness and
+external-copy handling remain operator responsibilities.
 
 ## Restoring a backup safely
 

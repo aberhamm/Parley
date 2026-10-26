@@ -6,12 +6,13 @@ dump, someone else's CSV export, an external integration, analytics, or a
 container log. Removing a file is a filesystem unlink, not a claim of physical
 secure erasure of SSD blocks or storage-provider replicas.
 
-The local privacy implementation supplies minimal database deletion receipts and
-`scripts/privacy-maintenance.py`. This tool uses Python's standard library plus
-`psql`; it installs no scheduler and changes no production configuration.
-Production log/archive expiry must be explicitly enrolled and verified before
-promising a time limit to users. Existing size-bounded Docker logs are not a
-calendar-based retention policy.
+The application supplies minimal database deletion receipts and the generic
+`scripts/privacy-maintenance.py` operator tool. The generic tool installs no
+scheduler. The Scrum Pro deployment additionally supplies dedicated host,
+Studio and NAS helpers with explicitly scoped scheduling and expiry policies.
+Their policy is described below. The 27 October 2026 deployment record verifies
+activation and the live checks; a manifest or source file alone would not prove
+that expiry or off-host journal replication ran successfully.
 
 ## Keep deletion decisions outside database backups
 
@@ -98,7 +99,11 @@ that a restored database respects later erasure requests.
 The expiry command accepts an exact manifest for one private directory, not a
 wildcard, recursive search or general cleanup command. It permits encrypted
 `.dump`, `.sql` and `.tar.gz` backup/rollback archives ending in `.enc`, `.age` or
-`.gpg`, and archived JSON logs ending `-json.log.<number>` or `.jsonl`. Active
+`.gpg`, archived JSON logs ending `-json.log.<number>` or `.jsonl`, and
+explicitly closed plain-text archives ending `.archived.log`. Historical plain
+logs must be deliberately renamed to that closed suffix, with the original
+filename/creation-time mapping retained in protected enrollment evidence. No
+automatic plain `.log` scan is authorized. Active
 Docker `*-json.log` files, keys, directories, symlinks, hardlinks, traversal paths
 and the tool's own recovery/audit files are refused. Never point this at the
 Docker daemon's storage directory. Use the runtime's supported rotation and
@@ -151,7 +156,7 @@ without content to `privacy-expiry-audit.jsonl`, mode 0600. Protect that audit
 separately and give it its own reviewed lifecycle. Missing listed files are
 reported without being recreated. A dry run does not remove files.
 
-Before enabling production enforcement, inventory every manual deployment
+Before enrolling additional copies, inventory every manual deployment
 backup, rollback database/volume, local restore, offsite replica and log archive.
 Enroll eligible archive files with a reviewed expiry, and handle database
 volumes through their own deliberately scoped procedure. This file tool cannot
@@ -160,11 +165,133 @@ or copies held by other people. Existing unlisted copies require separate
 reconciliation. Keep recovery keys until their last permitted encrypted backup
 has expired, then retire them through the operator's key-custody procedure.
 
-Schedule the reviewed command in the operator's existing maintenance system and
-alert on a nonzero exit; no schedule is installed by this change. Verify a run
+For another deployment, schedule the reviewed command in the operator's
+maintenance system and alert on a nonzero exit; the generic CLI does not install
+that schedule. Scrum Pro uses the dedicated units/daemon/cron described below. Verify a run
 actually deletes a disposable expired artifact and preserves an unexpired one
 before making a production retention promise. Do not claim that configuration,
 a manifest, a successful dry run or an encrypted backup alone proves deletion.
+
+
+## Scrum Pro deployment policy
+
+The privacy release artifact is application source
+`873780b2a584dd27dc8e830a6c35fbf4e7f99321`, linux/amd64 image
+`sha256:c94af0b9ce4d7e5865ae088b128ad597c70e43d598a270351ea9b3d32adebd76`.
+It is deployed with database schema 63. The 27 October 2026 live checks passed:
+HTTPS, distinct-vote two-browser WSS updates, role/last-owner denials, profile
+erasure preserving unrelated contributions and full owned-stack restart
+persistence. Scheduled host/Studio/NAS journal copies converged on the same five
+receipts without manual kicks, and independent NAS expiry status was observed.
+A real pre-erasure production snapshot was restored locally, reconciled with the
+automatically synced journal and replayed twice; deleted test data stayed absent
+and six original protected table hashes were preserved. The fresh postdeploy
+backup was copied off-host and fully restored at schema 63. See protected
+evidence in `/Users/matthew/.local/share/scrum-privacy-production-20261027/`.
+These observations verify the executed checks, not every future maintenance run
+or a host reboot recovery test.
+
+| Data/copy | Scoped retention mechanism |
+| --- | --- |
+| Hetzner encrypted deployment/config backups | Explicit checksum-pinned `.dump.enc` / `.tar.gz.enc` inventory in `/opt/apps/scrum-pro/privacy/backup-manifest.json`; declared creation plus 30 days. |
+| Studio encrypted deployment/rollback archives | Exact manifests in the fixed Scrum custody directories; at most 30 days from original creation, never reset by copying. |
+| Private host logs | Dedicated daily UTC JSON files and three size rotations; eligible closed files expire seven days from their filename date. |
+| Studio historical closed logs | Explicit `.archived.log` enrollment with original creation time plus at most seven days; active server/preview logs are not enrolled as closed. |
+| NAS Scrum database dumps | Exact `scrum-pro-parley.dump` only, in validated dated htz-4g directories, after recorded mtime reaches 30 days. Shared tarballs and other apps' backups remain untouched. |
+| Frozen former Studio production volume | Pinned `parley-local_parley-data` rollback volume, expires 2026-11-20 at 23:58 UTC. Old container shells/log caches have been removed after verified backup. |
+| Deletion journals and recovery-key configuration | Journals are not expired by content policies. Raw `/Users/matthew/.local/share/parley-local` configuration remains protected signing/key custody; it is not scheduled for deletion. Encrypted legacy config archives have separate 30-day enrollment. |
+
+Expiry occurs on the next successful scheduled maintenance pass after a declared
+deadline. Failures/outages must remain visible; do not describe a target period
+as proof that an inaccessible or failed maintenance target has already erased
+data. The schema-63 application and latest cumulative journal remain the
+recovery authority even while older rollback copies approach expiry.
+
+### Host scheduling and private logging
+
+`scrum-pro-logging.service` is a dedicated 32 MiB rsyslog instance listening only
+on `/run/scrum-pro-logging/syslog.sock`. It does not claim the system syslog
+socket or edit shared rsyslog/Caddy. All four Scrum containers send
+RFC5424micro through a nonblocking 1 MiB buffer, with Docker's local log cache
+disabled. Standard parsing (`UseSpecialParser=off`, `ParseHostname=on`) and an
+anchored `$app-name` filter select only Scrum's four service names. The root
+0700/0600 output is `/var/log/scrum-pro/scrum-pro-YYYY-MM-DD.jsonl` in UTC.
+
+The dedicated AppArmor override applies only to that unit; the shared profile
+is not edited. The unit still has strict writable paths, AF_UNIX-only sockets,
+no capabilities and no-new-privileges. It starts before Docker and waits at most
+ten seconds for its private socket before permitting the scoped
+`scrum-pro-stack.service` startup.
+
+`scrum-pro-privacy-maintenance.timer` runs every minute. Its helper exports the
+cumulative journal, invokes only the private logrotate config/state, validates
+both archive sets without deletion, then applies expiry. Logrotate uses
+copytruncate, a 10 MiB threshold and three rotations; the threshold can be
+exceeded between minute runs and copytruncate can lose messages. Input rate
+limiting is 200 messages per five seconds per sender across all severities;
+bursts or buffer pressure can drop diagnostics. These are bounded operational
+logs, not a complete audit-history promise.
+
+Host status is `/opt/apps/scrum-pro/privacy/status.json`; the independent
+journal is `/opt/apps/scrum-pro/privacy/journal/deletions.json`. Status contains
+only timestamp, instance ID, journal checksum/count and aggregate expiry
+metadata. A failure returns nonzero and failed status. These tools provide inspectable
+status, not an installed alert integration. No arbitrary Docker log
+paths or other apps' archives are pruned.
+
+### Studio and NAS custody
+
+LaunchDaemon `com.matthew.scrum-pro-privacy` runs every minute as `matthew` from
+`/Users/matthew/.local/share/scrum-pro-privacy`. Its protected `config.json`
+enrolls the exact local manifests and frozen-volume identity. The helper checks
+the host export's instance, checksum, receipt count, private custody and
+freshness (five-minute maximum, plus 60-second future-clock tolerance), then
+atomically merges receipts locally and mirrors them to NAS custody at
+`/volume1/backups/scrum-pro-privacy/journal/deletions.json`.
+
+A sync failure preserves verified local receipts and reports failure. Known
+Studio expiry is evaluated independently against validated local manifests even
+if the remote pull fails. Inspect `sync_status`, `expiry_status`, `nas_mirror`
+and `last_success` in the Studio's private `status.json`, rather than assuming
+that one successful subprocess proves every phase succeeded. Host export and Studio pull are serial minute phases, so end-to-end off-host
+custody is typically within two minutes plus execution/jitter. It is not
+one-minute or synchronous delivery.
+Before a controlled restore, obtain and verify the latest complete journal.
+
+NAS dump expiry has its own minute root cron entry in `/etc/crontab`, independent
+of Studio pull or host export success:
+
+```cron
+* * * * * root /usr/bin/python3 /volume1/backups/scrum-pro-privacy/privacy-nas.py expire --apply >/dev/null 2>&1 # scrum-pro-privacy-expiry
+```
+
+It validates the dated private directories and exact Scrum dump, checks its
+custom-format header, computes a checksum and rechecks file identity before
+unlinking an expired dump. It never removes shared `config.tar.gz`, another
+app's data or the dated directory itself. This NAS dump is a root-private
+custom-format archive, not an encrypted backup claim. Inspect its independent
+`expiry-status.json` and minimal audit under NAS privacy custody. A missing or
+failed journal mirror does not extend the lifetime of an already-expired NAS
+dump. Journals must outlive every backup capable of resurrecting erased objects.
+
+### Schema-63 recovery boundary
+
+An old schema-60 invitation binary cannot start against schema 63. Keep writers,
+workers and public ingress stopped, use a compatible binary/migration path,
+reconcile historical handoffs and other later permission changes, and replay
+the latest independently held cumulative deletion journal before exposure.
+Returning an old backup to service without replay can restore erased content
+and credentials. Merely selecting an old image or setting INVITE_ONLY=false is
+not a privacy-preserving rollback. Backups predating privacy metadata require
+verified operator reconciliation of instance identity; never silently adopt an
+unrelated database UUID. Take a fresh protected backup before recovery and keep
+failed reconciliation isolated.
+
+The raw original runtime configuration and separate encryption/signing keys are
+recovery dependencies, not meeting-content archives. Do not delete them under
+content-expiry rules or assert that their continued protected custody restores
+erased profiles/content. The frozen old Studio database is stale until its
+scheduled volume retirement; never reactivate its old connector.
 
 ## Local verification
 

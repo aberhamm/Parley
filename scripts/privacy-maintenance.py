@@ -281,9 +281,9 @@ def _artifact_name(record):
     if name in {"privacy-expiry-audit.jsonl", "privacy-journal.jsonl"}:
         raise ValueError("privacy recovery/audit records cannot expire as content logs")
     encrypted = re.search(r"\.(?:dump|sql|tar\.gz)\.(?:enc|age|gpg)$", name)
-    rotated_log = re.search(r"(?:-json\.log\.\d+|\.jsonl)$", name)
+    rotated_log = re.search(r"(?:-json\.log\.\d+|\.jsonl|\.archived\.log)$", name)
     if not (encrypted if kind in {"backup", "rollback"} else rotated_log):
-        raise ValueError("only encrypted backup/rollback archives or archived JSON logs may expire; keys and active logs are refused")
+        raise ValueError("only encrypted backup/rollback archives or explicitly closed log archives may expire; keys and active logs are refused")
     return name
 
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.matthew.scrum-pro-privacy</string>
+  <key>UserName</key><string>matthew</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/opt/python@3.14/bin/python3.14</string>
+    <string>/Users/matthew/.local/share/scrum-pro-privacy/privacy-studio.py</string>
+    <string>sync</string>
+    <string>--config</string>
+    <string>/Users/matthew/.local/share/scrum-pro-privacy/config.json</string>
+    <string>--apply-expiry</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/matthew/.local/share/scrum-pro-privacy</string>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>60</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>Nice</key><integer>10</integer>
+  <key>Umask</key><integer>63</integer>
+  <key>StandardOutPath</key><string>/dev/null</string>
+  <key>StandardErrorPath</key><string>/dev/null</string>
+</dict>
+</plist>
