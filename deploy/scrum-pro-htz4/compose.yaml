@@ -8,7 +8,7 @@ x-common: &common
 services:
   public-app:
     <<: *common
-    image: scrum-pro@sha256:2386de3829f81513bf26ae9d42820a9156d48df9e98d12a9f695b95b049c52d2
+    image: scrum-pro@sha256:80a644aa393bcfdda9ffd002d7faa81d4e03b48fd403438066f5e2fecc9cf8ee
     pull_policy: never
     platform: linux/amd64
     env_file: ./app.env

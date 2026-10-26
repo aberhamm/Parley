@@ -2,9 +2,9 @@
 
 Production: https://scrum.matthew.systems
 
-Application release: `afd0913d7d5b5467b58c9d8565a8973791b91ca5`.
+Application release: `88049156947c316ce705c4e466250bd73c8e9cae`.
 Linux/amd64 OCI image index digest:
-`sha256:2386de3829f81513bf26ae9d42820a9156d48df9e98d12a9f695b95b049c52d2`.
+`sha256:80a644aa393bcfdda9ffd002d7faa81d4e03b48fd403438066f5e2fecc9cf8ee`.
 The image was built on the Mac Studio, saved and loaded over SSH, and verified
 on Hetzner by digest and architecture. It is not published to a registry.
 The deployment Dockerfile uses native build stages and cross-compiles the same
@@ -101,6 +101,10 @@ copy while another host accepts writes. Reconcile revocations/deletions and
 queued jobs if restoring an older backup, as described in the application's
 backups-and-recovery documentation.
 
+The historical rollback instructions below predate invitation migration 0060.
+For the current release, use the invitation rollback procedure at the end of
+this document. An old binary cannot start against schema 60.
+
 ## Cutover and rollback, 2026-10-22
 
 Cutover completed at approximately 23:58 UTC on 2026-10-21 (01:58 Berlin on
@@ -178,3 +182,75 @@ Before rollout, a fresh custom-format PostgreSQL dump was archive-validated, enc
 For image rollback without reverting data, copy `/opt/apps/scrum-pro/compose.before-homepage-20261025.yaml` to `compose.yaml` and run `./manage.sh up -d --no-deps --wait public-app`. The prior image is retained on Hetzner. This release contains no schema change; do not restore an older database merely to revert this homepage.
 
 Live verification passed: HTTPS readiness and version, desktop (1280×720) and mobile (390×844) homepage rendering with no horizontal overflow, HTTP-to-HTTPS redirect, and the existing analytics script route. Runtime secret/gateway hashes, DB/gateway/tunnel container IDs, and workspace/member/session counts matched before and after. The reviewed frontend passed all 79 Landing tests, build and lint (existing warnings only).
+
+
+## Invitation rollout, 26 October 2026
+
+Application source `88049156947c316ce705c4e466250bd73c8e9cae`, image
+`sha256:80a644aa393bcfdda9ffd002d7faa81d4e03b48fd403438066f5e2fecc9cf8ee`,
+is deployed with explicit `INVITE_ONLY=true` in the protected `app.env`.
+Migration 0060 preserves identities, workspace ownership, passcodes and meeting
+records. Existing owners are not automatically promoted. Only explicitly
+invited hosts may create workspaces/sessions; workspace administration also
+requires ownership. Participant is the default invitation role.
+
+The reviewed image was built off-host for linux/amd64 and loaded by archive.
+Local verification of this exact application source passed all 1775 frontend
+tests, build/lint, Go vet, the full real-database Go race suite with
+TEST_DATABASE_URL set and no opt-out, and ten scoped invitation guard mutations.
+The delivered binary vulnerability scan was repeated immediately before rollout
+and found no vulnerabilities. GitHub Actions has no run for this fork commit;
+these are local execution results, not a claim of hosted CI success.
+
+Public writes were paused for the final backup and migration. Fresh custom-format
+preflight and cutover backups were encrypted before off-host persistence, copied
+to both hosts, decrypted and fully restored into isolated scratch databases.
+The actual delivered image migrated those restores from schema 59 to 60 with
+unchanged hashes/counts for eight protected tables and zero automatic hosts.
+The production cutover matched those protected hashes too. The previous image
+and configuration remain available; signing/session secrets were retained.
+
+Private backup/evidence directory on the Studio:
+`/Users/matthew/.local/share/scrum-invitations-deploy-20261026/`.
+Encrypted backups on Hetzner:
+`/opt/apps/scrum-pro/backups/invitations-{preflight,cutover,postdeploy}-20261026.dump.enc`.
+Configuration before rollout is retained in protected
+`/opt/apps/scrum-pro/backups/invitations-20261026/`, with an encrypted off-host
+configuration archive in the Studio evidence directory. Recovery-key custody
+remains separate as documented above. The postdeploy encrypted database backup
+was fully restored at schema 60 after test data cleanup.
+
+The app manifest and backup coverage already register Scrum Pro in the homelab
+repository. Nightly NAS artifacts for 20261026_040006 include the full database
+dump and protected configuration archive. The full-database backup includes
+hosting_grants and workspace_invitations without a backup-job change. The Home
+Lab orchestrator was notified of this rollout and recovery boundary.
+
+Live HTTPS verification passed: invitation-only auth configuration, anonymous
+homepage on desktop/mobile, no horizontal overflow or browser errors, participant
+invitation acceptance, five direct participant authorization denials, owner-only
+passcode/open controls, revocation, and explicit host delegation followed by
+workspace creation and further invitations. Two separate browsers received WSS
+vote/reveal updates. A database-and-app stop/start preserved both identities,
+workspace ownership/passcode, hosting grants and both revealed votes. Test
+workspaces, accounts, invitations and hosting grants were removed afterward.
+A private operator host invitation remains pending; accept it in the operator's
+existing browser identity to preserve access to existing workspaces. The raw link
+is held only in the protected Studio runtime directory, never in this repository.
+
+Native post-verification memory sample: app 6.062 MiB plus DB 32.21 MiB, about
+38.3 MiB combined, with explicit 128 + 384 MiB limits. Gateway 30.45 MiB and tunnel
+38.79 MiB were within their 48/64 MiB limits. All services are healthy, with zero
+OOM kills or automatic restarts. This is a small-session sample, not a load test.
+The dedicated tunnel/hostname and routing configuration remain unchanged. Shared
+host app container IDs and network attachments matched before and after cutover.
+
+### Current rollback procedure
+
+Do not merely select the previous image: it refuses schema 60. Keep public writers
+stopped and use either a migration-compatible binary or the matching schema 59
+cutover backup with the previous image/configuration. Take a new protected backup
+before any restore. Reconcile later writes, accepted/revoked invitations, hosting
+grants and memberships before exposing a restored store. Restoring the pre-upgrade
+backup loses later writes. Setting INVITE_ONLY=false reopens public hosting and
+is not a security-preserving rollback. The deployment operator owns rollback.
