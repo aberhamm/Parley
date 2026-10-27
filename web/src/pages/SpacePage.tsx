@@ -1,8 +1,10 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  ApiError,
   errorText,
   type Deck,
   type Person,
@@ -372,6 +374,7 @@ export function SpacePage() {
       // Never both: the join door spends whichever it is handed.
       const credential = invite.handle ? { handle: invite.handle } : invite.passcode ? { passcode: invite.passcode } : {};
       await api("POST", `${spaceApi(org, slug)}/join`, credential);
+      trackAnalyticsEvent("workspace_joined");
       setError("");
       qc.invalidateQueries({ queryKey: ["space", org, slug] });
       say("You're seated — pull up a chair");
@@ -1277,13 +1280,21 @@ function NewSessionModal({
       }
       body[spec.key] = at.toISOString();
     }
+    let sess: { id: string };
     try {
-      // The create answers the bare session, not a summary: only the id is read.
-      const sess = await api<{ id: string }>("POST", `${spaceApi(org, slug)}/sessions`, {
+      // Classify only this write; later UI failures cannot undo its success.
+      sess = await api<{ id: string }>("POST", `${spaceApi(org, slug)}/sessions`, {
         kind: kind.id,
         title: title.trim(),
         config: body,
       });
+    } catch (err) {
+      trackAnalyticsEvent("creation_failed", { flow: "session_create", category: err instanceof ApiError ? "rejected" : "outcome_unknown" });
+      setError(errorText(err));
+      return;
+    }
+    trackAnalyticsEvent("session_created", { kind: kind.id === "poker" ? "poker" : kind.id === "standup" ? "standup" : "other" });
+    try {
       navigate(`/session/${sess.id}`);
     } catch (err) {
       setError(errorText(err));

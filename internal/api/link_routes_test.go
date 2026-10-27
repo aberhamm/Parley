@@ -28,6 +28,30 @@ type linkRouteExpectation struct {
 // answers 401, 403 or 404 — never 200 with less data, because a partial answer
 // is still an answer.
 var linkGuestRouteTable = map[string]linkRouteExpectation{
+	"CONNECT /a": {status: http.StatusNotFound},
+	"DELETE /a":  {status: http.StatusNotFound},
+	"GET /a":     {status: http.StatusNotFound},
+	"HEAD /a":    {status: http.StatusNotFound},
+	"OPTIONS /a": {status: http.StatusNotFound},
+	"PATCH /a":   {status: http.StatusNotFound},
+	"POST /a":    {status: http.StatusNotFound},
+	"PUT /a":     {status: http.StatusNotFound},
+	"TRACE /a":   {status: http.StatusNotFound},
+	"QUERY /a":   {status: http.StatusNotFound},
+
+	"GET /a/script.js": {status: http.StatusNotFound},
+	"POST /a/api/send": {status: http.StatusNotFound},
+	"CONNECT /a/*":     {status: http.StatusNotFound},
+	"DELETE /a/*":      {status: http.StatusNotFound},
+	"GET /a/*":         {status: http.StatusNotFound},
+	"HEAD /a/*":        {status: http.StatusNotFound},
+	"OPTIONS /a/*":     {status: http.StatusNotFound},
+	"PATCH /a/*":       {status: http.StatusNotFound},
+	"POST /a/*":        {status: http.StatusNotFound},
+	"PUT /a/*":         {status: http.StatusNotFound},
+	"QUERY /a/*":       {status: http.StatusNotFound},
+	"TRACE /a/*":       {status: http.StatusNotFound},
+
 	"GET /api/orgs/{org}/spaces/{slug}/privacy":                       {status: http.StatusNotFound},
 	"PUT /api/orgs/{org}/spaces/{slug}/privacy":                       {status: http.StatusNotFound},
 	"POST /api/invitations/preview":                                   {status: http.StatusForbidden},

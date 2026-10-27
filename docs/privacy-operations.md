@@ -381,3 +381,23 @@ it does not perform a full restore every minute or prove physical erasure.
 Retain scheduled restore drills and the independent deletion-journal recovery
 procedure. The existing application source/image and schema are unchanged by
 this monitoring rollout.
+
+
+## Separate analytics custody readiness (local checker only)
+
+Application journals, backup rotation and profile erasure do not govern Umami
+or locate its anonymous records. The accepted90-day raw analytics boundary
+includes owned copies; do not assume a30-day backup grace period. Restored
+expired data, unknown exports/caches and missed expiry deadlines keep analytics
+readiness blocked, even after admission is closed.
+
+See `docs/analytics/collector-readiness.md` for the offline24-hour app005 receipt
+schema and operator/private evidence handoff. Its hash-bound proof references
+must be inspected by the accountable operator and a DIFFERENT reviewer; byte
+matching does not attest proof contents. Actual Homelab229 expiry,230 copy and
+restore reconciliation, and231 installed collection-off phase receipts remain
+missing/blocked in this local phase. The checker cannot perform their work,
+create a runtime lease or clear app005's operational block. Runtime007 uses a
+separate maximum60-second lease and actual loaded-executable fingerprint;
+maintenance still requires non-ready publication, at least6seconds, collector
+exit and DB writer drain before purge. No production behavior is changed here.

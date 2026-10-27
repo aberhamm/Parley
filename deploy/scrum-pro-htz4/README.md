@@ -502,3 +502,90 @@ it does not perform a full restore every minute or prove physical erasure.
 Retain scheduled restore drills and the independent deletion-journal recovery
 procedure. The existing application source/image and schema are unchanged by
 this monitoring rollout.
+
+## Bundled usage analytics gate
+
+The frontend replaces the legacy `/analytics.js` bootstrap with one bundled
+adapter (`web/src/lib/analytics.ts`) initialized from `main.tsx`. Public
+`meta[name="app-analytics"]` in `web/index.html` restricts the website ID to
+`scrum.matthew.systems`. Keep `data-named-events="false"` until plan005 custody
+and plan006 release evidence pass. This switch is public deployment
+configuration, not a secret or an authorization boundary. No server environment
+reader or endpoint change is introduced here. Gateway `/a/script.js` and
+`/a/api/send` stay unchanged; do not independently activate or reroute a shared
+collector based on this frontend change.
+
+The adapter uses the Umami3.0.3-compatible manual-track/before-send interface,
+with automatic tracking disabled to avoid duplicate SPA events. Route changes
+and initial readiness share one page-attempt deduplication path. Only fixed
+page categories, fixed title and empty referrer leave the projection. DNT and
+browser-local `umami.disabled` are rechecked for every attempted send; denied
+storage fails closed absent an explicit active-document choice. **Usage
+privacy** is reachable without identity, including standalone guest/link and
+presentation routes. Delivery failures drop signals without retry or persistent
+queue. Existing analytics is not erased by this control.
+
+The accepted90-day raw analytics policy remains an operator obligation distinct
+from app-content erasure. No collector expiry/backup/restore guarantee is
+established by these client tests. Keep expanded events off until the separately
+reviewed collector custody changes and deployed ingestion/negative tests pass.
+
+### Private Go relay activation gate
+
+Plan007 adds a default-off relay in the app; this source change does **not**
+activate it or change Caddy. At the separately validated cutover, remove only
+the dedicated Caddy `/a` direct-upstream handlers so its existing app fallback
+reaches `/a/script.js` and `/a/api/send`. Never expose native collector/DB ports.
+
+Enable `ANALYTICS_RELAY_URL=http://scrum-analytics-collector:3000` together with
+`ANALYTICS_RELAY_STATE_DIR=/run/parley-analytics` only after Homelab228–231 and
+app005/006 acceptance. Mount the whole operator-owned directory read-only (no
+single-file bind/subPath). The runtime schema and maintenance contract are in
+`docs/analytics/relay.md`. The operator must independently hash `/parley` from
+the installed immutable image and verify the running container uses it without
+an executable override. That SHA256 becomes `app_build`; Version is display
+metadata. No ready receipt is manufactured by the app, and an unavailable
+fingerprint disables only analytics. No raw analytics backup is authorized here.
+
+
+### App005 local readiness handoff (operationally blocked)
+
+`docs/analytics/collector-readiness.md` and
+`scripts/check-analytics-readiness.py` define a sanitized, offline24-hour rollout
+receipt. It is distinct from007's maximum60-second runtime admission lease and
+does not publish one. The checker requires expected policy/site/collector/
+tracker and immutable app image/executable bindings from the approved manifest,
+plus existing hash-bound private evidence files under `--evidence-root`.
+A schema/hash pass does not verify the meaning of those files or authorize
+rollout; the operator and independent reviewer must corroborate actual contents.
+
+Current stock-image availability,229 expiry,230 all-copy/configuration-only
+recovery and231 installed collection-off staging receipts remain missing or
+blocked. Do not create a ready receipt from their plan names. Keep relay
+activation and named events off until actual005 readiness and006/231 release
+acceptance. This local phase adds no network client, DB operation, scheduler,
+collector cleanup or production receipt. Synthetic ready fixtures are tests
+only. Refresh correspondence proof after any installed artifact change; source
+Version alone is insufficient. The final acceptance report still belongs to006.
+
+
+### App006 LOCAL report and acceptance preparation
+
+Report recipes are in `docs/analytics/reports.md` and the LOCAL data catalog
+`docs/analytics/report-recipes.json`; reproducible acceptance/rollback targets
+are in `docs/verification/analytics-acceptance.md`. The stdlib local preparation
+checker binds reviewed expected source/image/executable/gateway/policy/site/
+tracker/collector identities and optional exact-hash fresh005 proof, reusing the
+005 checker. It always reports LOCAL/rolloutblocked, never publishes readiness,
+queries Umami or proves accepted records. Action observations are the default;
+flows remain conditional on actual anonymous-context/ordering/window/filter
+proof. No unique people, meetings, conversion or retention claim is supported.
+
+Actual adapter→gatewayfallback→007relay→collector accepted-record and report
+readback remains required. Caddy legacy direct routes are not cut over by this
+preparation. Keep named events and runtime admission off; actual005 custody,
+229230 expiry/copies/access/restore and231 installed collection-off phase remain
+missing/blocked. Only later independent final acceptance may precede the
+already-authorized bounded rollout. Rollback disables ALL collection first,
+restores only approved prior app/config and never reopens the retired target or
+exposes unreconciled copies. It does not delete historical analytics.

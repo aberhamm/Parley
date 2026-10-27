@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./lib/ui";
 import { useThemePack } from "./lib/theme";
+import { AnalyticsChoice } from "./components/AnalyticsChoice";
 import { Landing } from "./pages/Landing";
 
 // Every route but the front door is its own chunk. They were one 497 KB bundle,
@@ -33,6 +34,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
+          <AnalyticsChoice />
           {/* No fallback art: a chunk on the same origin lands in a frame or
               two, and a spinner flashed for that long reads as a stutter. */}
           <Suspense fallback={null}>

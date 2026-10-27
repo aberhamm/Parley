@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { action, api, type Me, type SpaceView } from "../lib/api";
@@ -15,6 +15,7 @@ import { PluginChrome } from "../components/PluginChrome";
 import { NotificationSoundButton } from "../components/NotificationSoundButton";
 import { notificationAudio } from "../lib/notificationAudio";
 import { useImpactSounds } from "../lib/useImpactSounds";
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { notificationCue } from "../lib/notifications";
 
 /** Drop member-only fields after an identity remint — see SpacePage. */
@@ -106,6 +107,21 @@ export function SessionPage() {
   }
   const needsName = !guest && !me.isLoading && me.data === null;
   const identity = liveIdentity ?? (needsName ? keptIdentity : null);
+
+  // One best-effort observation for this mounted room view. No cross-room
+  // ledger: reloads, tabs and real remounts can observe the same room again.
+  const observedRoom = useRef<string | null>(null);
+  const hasGuestIdentity = !!guest;
+  useEffect(() => {
+    if (observedRoom.current !== id) observedRoom.current = null;
+    const env = session.data;
+    if (observedRoom.current === id || left || needsName || !liveIdentity
+      || session.isLoading || !env || (!hasGuestIdentity && !env.orgSlug)
+      || session.status === "removed" || session.status === "kicked"
+      || env.kindUnavailable || (env.kind !== "poker" && env.kind !== "standup")) return;
+    observedRoom.current = id;
+    trackAnalyticsEvent("room_opened", { kind: env.kind });
+  }, [id, left, needsName, liveIdentity, session.data, session.isLoading, session.status, hasGuestIdentity]);
 
   if (left) {
     return (
@@ -267,6 +283,7 @@ export function SessionPage() {
         ) : Room ? (
           <Suspense fallback={null}>
             <Room
+              key={env.id}
               env={env}
               me={identity}
               status={session.status}

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "website": "acc214c0-d772-493a-ad03-49fa8e72d77e",
+  "hostname": "scrum.matthew.systems",
+  "title": "Scrum Pro",
+  "collector_version": "3.0.3",
+  "collector_image": "sha256:28f263fe06f79ebffa5a6a6e9bd33b7a278e9342a88e0bdac812416c9f9e4361",
+  "tracker_sha256": "a1471487eb3e8eb93b1a9e056386019ff5eedadea29bbb725b5494fb2e9ad90a",
+  "pages": [
+    "/",
+    "/directory",
+    "/workspace",
+    "/workspace-settings",
+    "/session",
+    "/present",
+    "/invite",
+    "/link",
+    "/other"
+  ],
+  "events": {
+    "workspace_created": {},
+    "workspace_joined": {},
+    "invitation_accepted": {},
+    "guest_link_redeemed": {},
+    "poker_vote_saved": {},
+    "poker_reveal_requested": {},
+    "standup_participated": {},
+    "session_created": {
+      "kind": [
+        "poker",
+        "standup",
+        "other"
+      ]
+    },
+    "room_opened": {
+      "kind": [
+        "poker",
+        "standup",
+        "other"
+      ]
+    },
+    "session_closed": {
+      "kind": [
+        "poker",
+        "standup",
+        "other"
+      ]
+    },
+    "creation_failed": {
+      "flow": [
+        "workspace_create",
+        "session_create"
+      ],
+      "category": [
+        "rejected",
+        "outcome_unknown"
+      ]
+    }
+  }
+}
