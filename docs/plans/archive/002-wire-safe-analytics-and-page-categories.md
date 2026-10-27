@@ -1,16 +1,20 @@
 ---
 id: 002
 title: Wire safe analytics and correct page categories
-status: pending
+status: done
 blocked-by: [001]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
 needs-review: none
 review-required: eng,design
 created: 2026-10-27
+completed: 2026-10-27
+reviewed: false
+qa: automated
 reviews:
   - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
   - type=design verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=code verdict=pass date=2026-10-27 by=mstack-code-review
 ---
 
 ## Plain-English Summary
@@ -93,3 +97,30 @@ assumed:
 - from: 001; kind: symbol; name: analyticsPageCategory; file: web/src/lib/analyticsContract.ts
 - from: 001; kind: symbol; name: projectAnalyticsEvent; file: web/src/lib/analyticsContract.ts
 -->
+
+## Implementation Notes
+
+Replaced the legacy bootstrap with one contract-based, production-host-scoped adapter and browser-local privacy control outside route/identity/Suspense gates. Named collection stays disabled. DOM loader failures cannot abort app boot; the existing canonical descriptor reader rejects hostile outer payloads; excluded route visits reset dedup without duplicating initial/StrictMode attempts. Five genuine mutation cases include paired named-defaultoff and DNT/native-tracker guards. No runtime event instrumentation or collector routing changes.
+
+Actual red-first failures preceded corrections. Different independent validator /root/analytics_validator found four initial issues, then independently verified all resolved with82tests/build/full lint/five mutations (505source fingerprints restored), matchingUmami3.0.3 browser fault probes and named standard mstack-code-review zero findings. The actual original fail artifact/record and recheckpass evidence are preserved outside the checkout at /Users/matthew/.local/share/scrum-analytics-20261027/plan002/. Native scoped health is PASS8.9 with existing SHELL4/FAILURES:shell explicitly unresolved; full frontend/site builds passed, but no release-wide all-green claim. TEST_DATABASE_URL unset/unused; noGo/database checks or skipoptout. Accepted90days and reviewed-plan issue exception remain distinct from downstream collector custody/release gates.
+
+**Files changed:**
+
+- `deploy/scrum-pro-htz4/README.md` (modified)
+- `docs/plans/002-wire-safe-analytics-and-page-categories.md` (completion bookkeeping)
+- `scripts/guard-mutation.sh` (modified)
+- `site/src/content/docs/known-limitations.mdx` (modified)
+- `site/src/content/docs/security/data-and-privacy.mdx` (modified)
+- `web/index.html` (modified)
+- `web/src/App.test.tsx` (modified; original theme tests retained)
+- `web/src/App.tsx` (modified)
+- `web/src/lib/analyticsContract.ts` (modified; reuse canonical descriptor reader)
+- `web/src/main.tsx` (modified)
+- `web/src/components/AnalyticsChoice.css` (created)
+- `web/src/components/AnalyticsChoice.test.tsx` (created)
+- `web/src/components/AnalyticsChoice.tsx` (created)
+- `web/src/lib/analytics.test.ts` (created)
+- `web/src/lib/analytics.ts` (created)
+- `web/public/analytics.js` (deleted; obsolete bootstrap)
+
+**Commit:** `534a089` — `feat(web): add private optional usage analytics` (before same-iteration hash backfill)

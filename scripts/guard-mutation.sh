@@ -231,6 +231,35 @@ mutate() {
     fi
 }
 
+# Analytics guards share this harness's baseline, compile and restoration checks.
+analytics_mutations() {
+    target web/src web
+    mutate "analytics per-send preference" \
+        "src/lib/analytics.test.ts::reevaluates opt-out for every send and late callback" \
+        lib/analytics.ts 'if (!allowed() || type !== "event"' 'if (false || type !== "event"'
+    mutate "analytics finite event catalog" \
+        "src/lib/analytics.test.ts::rejects unknown named payloads and projects only the approved primitive catalog" \
+        lib/analytics.ts 'if (!event) return false;' 'if (!event) return base;'
+    mutate "analytics named collection default-off" \
+        "src/lib/analytics.test.ts::keeps named collection defaultoff and rejects unknown payload types" \
+        lib/analytics.ts 'if (!config.named) return false;' 'if (false) return false;' \
+        lib/analytics.ts 'if (!configuration()?.named || !event) return;' 'if (!event) return;'
+    mutate "analytics Do Not Track" \
+        "src/lib/analytics.test.ts::reevaluates DNT after readiness and refuses initial loading" \
+        lib/analytics.ts 'return navigator.doNotTrack === "1" || window.doNotTrack === "1";' 'return false;' \
+        lib/analytics.ts 'script.dataset.doNotTrack = "true";' 'script.dataset.doNotTrack = "false";'
+    mutate "analytics fixed route projection" \
+        "src/lib/analytics.test.ts::projects all page fields into the fixed route category" \
+        lib/analytics.ts 'hostname: location.hostname, url, title:' 'hostname: location.hostname, url: location.pathname, title:'
+}
+analytics_mutations
+if [ "${1:-}" = "--analytics" ]; then
+    if [ "$failures" -ne 0 ] || [ "$harness_failures" -ne 0 ]; then exit 1; fi
+    echo "all $checked analytics guard mutations were caught."
+    exit 0
+fi
+target internal/plugin
+
 mutate "the private-address screen" \
     'TestFetchRefusesPrivateLoopbackLinkLocalAndMetadataAddresses|TestFetchScreensEveryResolvedRecordNotOnlyTheFirst|TestAFetchToALinkLocalAddressIsBlockedInsideTheHostFunction' \
     fetch.go 'func blockedAddress(a netip.Addr) bool {' 'func blockedAddress(a netip.Addr) bool { return false //nolint

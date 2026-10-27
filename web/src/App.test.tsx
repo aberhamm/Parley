@@ -1,8 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
-import App from "./App";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import beacon from "./themes/beacon.theme.json";
 import { parseThemePack } from "./lib/theme";
+import App from "./App";
+vi.mock("./pages/Landing",()=>({Landing:()=> <p>Landing</p>}));
+vi.mock("./pages/LinkPage",()=>({LinkPage:()=> <p>Link failed to load</p>}));
+vi.mock("./pages/PresentPage",()=>({PresentPage:()=> <p>Guest presentation</p>}));
+vi.mock("./pages/InvitationPage",()=>new Promise(()=>{}));
+afterEach(()=>cleanup());
+it.each(["/","/link#SECRET","/session/guest/present","/invite"])("keeps preference outside route content and loading on %s",(path)=>{
+  history.replaceState({},"",path); render(<App/>);
+  expect(screen.getByText("Usage privacy")).toBeTruthy();
+});
+it.each(["/auth/callback","/embed/meet/mainstage","/o/private/admin/plugins"])("excludes %s without needing profile access",(path)=>{
+  history.replaceState({},"",path); render(<App/>);
+  expect(screen.queryByText("Usage privacy")).toBeNull();
+});
 
 /**
  * The pipeline end to end, at the level a user meets it: a pack sitting in
