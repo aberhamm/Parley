@@ -1,7 +1,7 @@
 ---
 id: 004
 title: Measure browser-observed ceremony participation
-status: pending
+status: in-progress
 blocked-by: [001, 002]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
