@@ -6,8 +6,13 @@ import (
 	"compress/gzip"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
+	"hash/crc32"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +61,67 @@ func goldenInputs(t *testing.T, dir string) (map[string][]byte, []byte) {
 var goldenVectors = []struct{ dir, digest string }{
 	{golden, "c17aa8ac55e0b548cee4fefbc91f2e9362b92f5933d2c7727b127c70a7d4ff1d"},
 	{filepath.Join(golden, "large"), "8fb6eefc4e20fef462a179f2915f9450c043c4f40b962f24c7112ad0689f9f18"},
+}
+
+func TestStoredGzipUsesTheCanonicalBlocks(t *testing.T) {
+	for _, size := range []int{0, 1, 65534, 65535, 65536, 131070, 131071, MaxTotal} {
+		t.Run(fmt.Sprintf("%d_bytes", size), func(t *testing.T) {
+			body := make([]byte, size)
+			for i := range body {
+				body[i] = byte(i*31 + 17)
+			}
+			got := storedGzip(body)
+			header := []byte{0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff}
+			if len(got) < 23 || !bytes.Equal(got[:10], header) {
+				t.Fatal("gzip header differs from format v1")
+			}
+			pos := 10
+			for start := 0; start < len(body); {
+				n := min(65535, len(body)-start)
+				if len(got)-pos < 5+n+13 {
+					t.Fatalf("truncated stored block at %d", start)
+				}
+				if got[pos] != 0 || binary.LittleEndian.Uint16(got[pos+1:pos+3]) != uint16(n) || binary.LittleEndian.Uint16(got[pos+3:pos+5]) != ^uint16(n) {
+					t.Fatalf("noncanonical stored block at %d", start)
+				}
+				if !bytes.Equal(got[pos+5:pos+5+n], body[start:start+n]) {
+					t.Fatalf("stored payload differs at %d", start)
+				}
+				pos += 5 + n
+				start += n
+			}
+			if len(got)-pos != 13 || !bytes.Equal(got[pos:pos+5], []byte{1, 0, 0, 0xff, 0xff}) {
+				t.Fatal("missing canonical empty final stored block or extra bytes")
+			}
+			if binary.LittleEndian.Uint32(got[pos+5:pos+9]) != crc32.ChecksumIEEE(body) || binary.LittleEndian.Uint32(got[pos+9:]) != uint32(len(body)) {
+				t.Fatal("gzip CRC or size trailer differs")
+			}
+			gz, err := gzip.NewReader(bytes.NewReader(got))
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := io.ReadAll(gz)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := gz.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(decoded, body) {
+				t.Fatal("gzip does not round-trip the input")
+			}
+		})
+	}
+}
+
+func TestStoredGzipMatchesKnownCRCVector(t *testing.T) {
+	want, err := hex.DecodeString("1f8b08000000000000ff000900f6ff313233343536373839010000ffff2639f4cb09000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := storedGzip([]byte("123456789")); !bytes.Equal(got, want) {
+		t.Fatalf("stored gzip differs from known IEEE CRC-32 vector: %x", got)
+	}
 }
 
 func TestPackReproducesTheGoldenVector(t *testing.T) {
