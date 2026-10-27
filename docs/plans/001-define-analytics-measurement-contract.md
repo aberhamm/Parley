@@ -1,16 +1,20 @@
 ---
 id: 001
 title: Define the analytics measurement and privacy contract
-status: in-progress
+status: done
 blocked-by: []
 goal: privacy-preserving-product-analytics
 allows-migrations: false
 needs-review: none
 review-required: ceo,eng
 created: 2026-10-27
+completed: 2026-10-27
+reviewed: false
+qa: automated
 reviews:
   - type=ceo verdict=approved date=2026-10-27 by=codex-formal-plan-review
   - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=code verdict=pass date=2026-10-27 by=mstack-code-review
 ---
 
 ## Plain-English Summary
@@ -103,3 +107,19 @@ Checks below are future implementation checks, not checks performed while author
 ### Execution authorization recorded 2026-10-27
 
 Matthew explicitly directed: “Use the reviewed plans instead of an issue, and proceed with the scoped Scrum Pro analytics retention and backup-custody work. Delegate implementation and independent validation, then merge and deploy once the checks pass.” The six reviewed plans replace the issue requirement for this work only; no upstream/fork issue or repository setting is needed. The accepted raw Umami retention is90days. This plan001 invocation is limited to the pure measurement contract and local tests, with no runtime sends or collector changes. Parent owns later integration/deployment after independent evidence; no new approval round is implied for the already authorized scope.
+
+## Implementation Notes
+
+Implemented the pure typed measurement contract, finite event/property projection and real-route categories without enabling collection. Added the metric/privacy contract and scoped security-register references; evidence statuses remain unchanged. Red-first behavioral, encoded-path and revoked-proxy failures were observed, followed by 54 passing tests. Frontend build and full lint passed (existing lint warnings remain). Actual scoped native health is PASS8.9, with unchanged SHELL4/FAILURES:shell; this is not release-wide all-green evidence. TEST_DATABASE_URL was unset/unused; no Go/database checks ran.
+
+Different independent Codex validator /root/analytics_validator executed the 54 tests, build, full lint and diff check, then applied named mstack-code-review with zero findings. Its actual structured artifact was copied to the native review cache and mapped through code_verdict_from_findings; the native code gate records pass. Evidence: /Users/matthew/.local/share/scrum-analytics-20261027/plan001/INDEPENDENT-VALIDATION.md and COMPLETION-REPORT.md. Accepted90-day policy and reviewed-plan tracking exception remain distinct from unresolved downstream collector mechanisms. No runtime sends, collector changes, plan002 work, push, merge or deployment occurred.
+
+**Files changed:**
+
+- `docs/security/control-register.csv` (modified)
+- `docs/analytics/measurement-contract.md` (created)
+- `web/src/lib/analyticsContract.ts` (created)
+- `web/src/lib/analyticsContract.test.ts` (created)
+- `docs/plans/001-define-analytics-measurement-contract.md` (completion bookkeeping)
+
+**Commit:** `7d06679` — `feat(web): define the analytics measurement contract` (implementation commit before same-iteration hash backfill)
