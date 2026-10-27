@@ -1,7 +1,7 @@
 ---
 id: 002
 title: Wire safe analytics and correct page categories
-status: pending
+status: in-progress
 blocked-by: [001]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
