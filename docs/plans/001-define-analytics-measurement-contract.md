@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Define the analytics measurement and privacy contract
-status: pending
+status: in-progress
 blocked-by: []
 goal: privacy-preserving-product-analytics
 allows-migrations: false
@@ -84,7 +84,7 @@ assumed:
 
 ## Tasks
 
-1. Review current source and the relevant privacy/security references; locate the scoped issue and resolve the baseline receipt owner without contacting a Claude-owned session.
+1. Review source and the privacy/security references; use Matthew's explicit reviewed-plan tracking exception below and resolve the baseline receipt owner without contacting a Claude-owned session.
 2. Write the question-to-metric matrix, v1 event table, page categories, payload exclusions, and count/identity/coverage limitations.
 3. Obtain only already authorized collector facts or record exact unavailable facts and their owner; keep secret configuration and raw user records out of the receipt.
 4. Add red-first projection tests for real routes, hostile IDs/tokens/content, unknown events/properties, and enum widening; implement the pure typed contract.
@@ -99,3 +99,7 @@ Checks below are future implementation checks, not checks performed while author
 - [cmd] `cd web && npm run build && npm run lint` — use existing tooling and name existing warnings honestly.
 - [manual] Review the metric matrix and baseline receipt against exact source/version; explicitly reject claims of unique people, meeting completion, long-term user retention, or cohort conversion without supporting evidence.
 - [manual] Preserve missing collector authority/version/retention decisions as blockers for the appropriate downstream gates; no production read or write is authorized just by passing this plan.
+
+### Execution authorization recorded 2026-10-27
+
+Matthew explicitly directed: “Use the reviewed plans instead of an issue, and proceed with the scoped Scrum Pro analytics retention and backup-custody work. Delegate implementation and independent validation, then merge and deploy once the checks pass.” The six reviewed plans replace the issue requirement for this work only; no upstream/fork issue or repository setting is needed. The accepted raw Umami retention is90days. This plan001 invocation is limited to the pure measurement contract and local tests, with no runtime sends or collector changes. Parent owns later integration/deployment after independent evidence; no new approval round is implied for the already authorized scope.
