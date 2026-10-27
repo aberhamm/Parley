@@ -1,7 +1,7 @@
 ---
 id: 007
 title: Bound the exact-site analytics relay and maintenance admission
-status: pending
+status: in-progress
 blocked-by: [001, 002]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
