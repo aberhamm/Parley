@@ -546,3 +546,24 @@ the installed immutable image and verify the running container uses it without
 an executable override. That SHA256 becomes `app_build`; Version is display
 metadata. No ready receipt is manufactured by the app, and an unavailable
 fingerprint disables only analytics. No raw analytics backup is authorized here.
+
+
+### App005 local readiness handoff (operationally blocked)
+
+`docs/analytics/collector-readiness.md` and
+`scripts/check-analytics-readiness.py` define a sanitized, offline24-hour rollout
+receipt. It is distinct from007's maximum60-second runtime admission lease and
+does not publish one. The checker requires expected policy/site/collector/
+tracker and immutable app image/executable bindings from the approved manifest,
+plus existing hash-bound private evidence files under `--evidence-root`.
+A schema/hash pass does not verify the meaning of those files or authorize
+rollout; the operator and independent reviewer must corroborate actual contents.
+
+Current stock-image availability,229 expiry,230 all-copy/configuration-only
+recovery and231 installed collection-off staging receipts remain missing or
+blocked. Do not create a ready receipt from their plan names. Keep relay
+activation and named events off until actual005 readiness and006/231 release
+acceptance. This local phase adds no network client, DB operation, scheduler,
+collector cleanup or production receipt. Synthetic ready fixtures are tests
+only. Refresh correspondence proof after any installed artifact change; source
+Version alone is insufficient. The final acceptance report still belongs to006.
