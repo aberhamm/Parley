@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -147,3 +147,23 @@ instance identity, reconcile historical ownership when necessary, then replay
 the journal. Also reconcile permissions and revocations not covered by deletion
 receipts before reopening access. See [Backups and recovery](/operations/backups-and-recovery/)
 and the repository runbook `docs/privacy-operations.md` for exact commands.
+
+
+## Protection failure alerts
+
+Scrum Pro's independent operator checker reports backup freshness, host/Studio/NAS
+expiry and deletion-journal syncing to Healthchecks every minute. The existing
+devops Telegram channel receives failure and recovery notifications. Backups
+must be no more than 30 hours old. Maintenance/export/sync success must be no
+more than five minutes old; persistent journal/status/mirror divergence gets a
+separate five-minute grace to accommodate normal atomic publication gaps.
+If the checker itself stops, independent missed-heartbeat alerts trigger about
+five minutes after its last successful ping. Only fixed diagnostic codes leave
+the checker, not meeting content, personal identifiers or credentials.
+
+The checks are read-only; they do not replace backup restore drills, guarantee
+instantaneous off-host custody, or confirm that someone read a notification.
+The delivery path depends on the operator's Healthchecks and Telegram services.
+Pause the matching checks before intentionally retiring their sender. Runtime
+setup, status locations and recovery instructions are in
+`deploy/scrum-pro-htz4/README.md` and `docs/privacy-operations.md`.

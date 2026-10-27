@@ -5,7 +5,7 @@ description: Dump it, encrypt it, restore it, and the one command that deletes e
 
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 
-<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
+<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "internal/db/migrate.go", "internal/plugin/secrets.go", "internal/poker/publication/connections.go", "internal/db/migrations/0057_publication_connections.sql", "internal/plugin/runtime.go", "internal/standup/webhook.go", "cmd/parley/main.go", "docs/security/README.md"]} />
 
 The application does not schedule its own database backups. Use `pg_dump`,
 encrypt its output, and define operator custody and retention. The optional
@@ -283,3 +283,23 @@ production snapshot reconciled through the automatically synced journal, with
 idempotent replay and unrelated data preserved. A new off-host postdeploy backup
 was fully restored at schema 63. These executed checks do not prove every future
 maintenance run or a host reboot recovery drill.
+
+
+## Protection failure alerts
+
+Scrum Pro's independent operator checker reports backup freshness, host/Studio/NAS
+expiry and deletion-journal syncing to Healthchecks every minute. The existing
+devops Telegram channel receives failure and recovery notifications. Backups
+must be no more than 30 hours old. Maintenance/export/sync success must be no
+more than five minutes old; persistent journal/status/mirror divergence gets a
+separate five-minute grace to accommodate normal atomic publication gaps.
+If the checker itself stops, independent missed-heartbeat alerts trigger about
+five minutes after its last successful ping. Only fixed diagnostic codes leave
+the checker, not meeting content, personal identifiers or credentials.
+
+The checks are read-only; they do not replace backup restore drills, guarantee
+instantaneous off-host custody, or confirm that someone read a notification.
+The delivery path depends on the operator's Healthchecks and Telegram services.
+Pause the matching checks before intentionally retiring their sender. Runtime
+setup, status locations and recovery instructions are in
+`deploy/scrum-pro-htz4/README.md` and `docs/privacy-operations.md`.

@@ -333,8 +333,7 @@ redeploying an archive does not restart its retention clock.
 
 The root-private `/opt/apps/scrum-pro/privacy/status.json` reports only instance,
 time, journal checksum/count and aggregate expiry results. Any maintenance
-failure sets failed status and a nonzero exit. Status inspection is available;
-these tools do not install an alert integration. A successful API deletion does
+failure sets failed status and a nonzero exit. The independent protection checker below sends Healthchecks heartbeats and alerts. A successful API deletion does
 not prove the subsequent off-host export has completed.
 
 On the Studio, LaunchDaemon `com.matthew.scrum-pro-privacy` runs every minute as
@@ -429,7 +428,7 @@ Without manually kicking their schedules, the host and Studio minute jobs
 copied all five receipts to the host/Studio/NAS journals with identical bytes.
 The independent NAS expiry job also reported successful status. This verifies
 the scheduled path for the observed run; ongoing failures still require status
-inspection, and no alert integration is installed.
+inspection. The subsequent protection-alert rollout below adds live notifications.
 
 A real pre-erasure production snapshot was fully restored into an isolated local
 database. Replaying the latest automatically synchronized Studio journal removed
@@ -443,3 +442,63 @@ Post-QA native memory sample: app 5.59 MiB + DB 31.84 MiB = 37.43 MiB within the
 128 + 384 MiB caps; gateway 10.14 MiB, tunnel 16.87 MiB and dedicated logger about
 1.1 MiB were within their 48/64/32 MiB limits. These are small-session samples,
 not load-test results. Operator maintenance has its own explicit memory limit.
+
+
+## Protection alerts, 27 October 2026
+
+The independent Studio LaunchDaemon `com.matthew.scrum-pro-protection` runs
+`privacy-alerts.py` every 60 seconds as `matthew`. It reads only protection
+metadata over bounded SSH requests and never runs a backup, expiry operation,
+SQL query, or journal replay. Existing maintenance jobs remain independent.
+
+| Healthchecks name | Failure condition |
+| --- | --- |
+| Scrum Pro backup freshness | No private custom-format Scrum dump in a dated NAS snapshot with the final `docker-ps.txt` artifact, or its capture mtime is over 30 hours old, over 60 seconds in the future, too small, or has the wrong header. |
+| Scrum Pro expiry jobs | Failed/stale host maintenance, stopped dedicated logger/timer, failed/stale Studio expiry, or failed/stale independent NAS expiry. Success timestamps must be no more than five minutes old. |
+| Scrum Pro deletion journal sync | Failed/stale host export or Studio/NAS sync; missing/invalid journal or wrong instance; or a journal/status/mirror mismatch that persists for more than five minutes. |
+
+All three checks use the existing devops Telegram channel. The checker pings
+healthy or `/fail` every run; Healthchecks sends failure/recovery notifications
+on state changes. An explicit failed result is reported on the next checker
+run, normally within a minute. Stale status and persistent divergence alerts
+occur after five minutes plus the next poll. The journal/status files are
+published separately; each transient mismatch has its own durable grace clock.
+Those clocks are saved before any green heartbeat, so a broken state file
+cannot make the checker forget divergence indefinitely.
+
+Each external check has a 60-second period plus 240-second grace. If the
+checker, Studio, interpreter, SSH collection, or notification transport stops
+producing valid heartbeats, Healthchecks independently raises a missed-run
+alert about five minutes after the last success. A stopped checker can cause
+all three alerts. The delivery path still depends on Healthchecks and Telegram;
+it does not prove that a phone displayed or a person read a notification.
+
+Runtime source/config/status are under
+`/Users/matthew/.local/share/scrum-pro-privacy/`:
+`privacy-alerts.py`, private `alerts.json`, and private `alerts-status.json`.
+The config has version 1 and a `checks` object with `backup`, `expiry`, and
+`journal` canonical HTTPS Healthchecks ping URLs. Ping UUIDs are capabilities:
+keep them mode 0600, out of Git, reports, logs and chat. The checker reads the
+existing `config.json` for deployment identity and the fixed NAS SSH target.
+Only fixed diagnostic codes leave in ping bodies; no meeting content, user IDs,
+passcodes, database credentials, journal records, or ping URLs are sent.
+
+For a new installation, create the three checks in the existing Healthchecks
+project, attach its enabled Telegram channel explicitly, set period/grace to
+60/240 seconds, then install the config, script and LaunchDaemon. Run the
+checker manually and verify all three checks are up before considering them
+armed. Install only the new plist in `/Library/LaunchDaemons`; no app/DB restart
+or shared service change is required. Inspect the private checker status and
+`sudo launchctl print system/com.matthew.scrum-pro-protection` for run/exit state.
+
+Before intentionally disabling/uninstalling the checker, pause its three checks
+in Healthchecks first. Otherwise missed-heartbeat alerts are expected. To
+resume, load the daemon and verify fresh green pings; do not disable the
+underlying privacy jobs merely to silence an alert. Recover a failing job,
+verify its data and status, and allow the next normal check to send recovery.
+
+Monitoring checks backup freshness/header/size and the final snapshot artifact;
+it does not perform a full restore every minute or prove physical erasure.
+Retain scheduled restore drills and the independent deletion-journal recovery
+procedure. The existing application source/image and schema are unchanged by
+this monitoring rollout.
