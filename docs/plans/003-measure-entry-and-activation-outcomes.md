@@ -1,7 +1,7 @@
 ---
 id: 003
 title: Measure browser-observed entry and activation outcomes
-status: pending
+status: in-progress
 blocked-by: [001, 002]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
