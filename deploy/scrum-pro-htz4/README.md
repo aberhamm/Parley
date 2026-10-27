@@ -567,3 +567,25 @@ acceptance. This local phase adds no network client, DB operation, scheduler,
 collector cleanup or production receipt. Synthetic ready fixtures are tests
 only. Refresh correspondence proof after any installed artifact change; source
 Version alone is insufficient. The final acceptance report still belongs to006.
+
+
+### App006 LOCAL report and acceptance preparation
+
+Report recipes are in `docs/analytics/reports.md` and the LOCAL data catalog
+`docs/analytics/report-recipes.json`; reproducible acceptance/rollback targets
+are in `docs/verification/analytics-acceptance.md`. The stdlib local preparation
+checker binds reviewed expected source/image/executable/gateway/policy/site/
+tracker/collector identities and optional exact-hash fresh005 proof, reusing the
+005 checker. It always reports LOCAL/rolloutblocked, never publishes readiness,
+queries Umami or proves accepted records. Action observations are the default;
+flows remain conditional on actual anonymous-context/ordering/window/filter
+proof. No unique people, meetings, conversion or retention claim is supported.
+
+Actual adapter→gatewayfallback→007relay→collector accepted-record and report
+readback remains required. Caddy legacy direct routes are not cut over by this
+preparation. Keep named events and runtime admission off; actual005 custody,
+229230 expiry/copies/access/restore and231 installed collection-off phase remain
+missing/blocked. Only later independent final acceptance may precede the
+already-authorized bounded rollout. Rollback disables ALL collection first,
+restores only approved prior app/config and never reopens the retired target or
+exposes unreconciled copies. It does not delete historical analytics.
