@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-analytics-v1" source={["web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -167,3 +167,37 @@ The delivery path depends on the operator's Healthchecks and Telegram services.
 Pause the matching checks before intentionally retiring their sender. Runtime
 setup, status locations and recovery instructions are in
 `deploy/scrum-pro-htz4/README.md` and `docs/privacy-operations.md`.
+
+## Optional Scrum Pro usage analytics
+
+This fork configures coarse page counts only on `scrum.matthew.systems` through
+its same-origin analytics gateway. Other deployments and preview hosts do not
+automatically use this site. The bundled adapter projects addresses to fixed
+categories such as `/workspace` and `/session`; it sends a fixed application
+title and empty referrer. Raw organization, workspace and session addresses,
+query strings, fragments, names, votes and meeting text are excluded. The
+browser projection is data minimization for trusted app calls, not a defense
+against someone forging requests to a public collector.
+
+Open **Usage privacy** on any eligible page, including invitation, guest and
+presentation pages, to change **Allow usage analytics in this browser**.
+Opting out suppresses subsequent sends, and Do Not Track also blocks them.
+The preference uses `umami.disabled` in this browser's local storage. If storage
+cannot be read, analytics stays blocked until an explicit choice in the open
+page; if a choice cannot be saved, the control says so and it applies only to
+that document. Enabling may require a reload. The choice does not delete past
+analytics or apply to another browser.
+
+Delivery is optional and best effort: unavailable scripts, blocked/offline
+requests and ambiguous failures are dropped, without a persistent queue or
+automatic replay. Counts describe observed browser actions, not unique people,
+meetings or authoritative business records. Expanded named-event collection is
+disabled by default pending collector custody and release validation.
+
+The operator has accepted a 90-day policy for raw analytics; this is separate
+from application erasure and app backup retention. The adapter does not enforce
+collector expiry or remove historical analytics. Collector storage, access,
+backup exclusion and restore reconciliation require separate operator evidence
+before expanded collection is enabled. No anonymity or complete deletion
+promise follows merely from the client projection. See the repository's
+`docs/analytics/measurement-contract.md` for exact definitions and limitations.

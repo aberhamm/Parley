@@ -21,7 +21,7 @@ export type AnalyticsPageCategory =
 
 // Read data properties without invoking accessors, and reject class instances,
 // inherited fields and symbols. A malformed caller must not break a user action.
-function readEventData(data: unknown): Record<string, unknown> | null {
+export function readAnalyticsData(data: unknown): Record<string, unknown> | null {
   if (data === undefined) return {};
   if (data === null || typeof data !== "object") return null;
   try {
@@ -53,7 +53,7 @@ function isAnalyticsKind(value: unknown): value is AnalyticsKind {
 
 /** Reject unapproved inputs, then build a new payload from fixed primitives. */
 export function projectAnalyticsEvent(name: unknown, data?: unknown): ApprovedAnalyticsEvent | null {
-  const values = readEventData(data);
+  const values = readAnalyticsData(data);
   if (!values) return null;
   switch (name) {
     case "workspace_created":

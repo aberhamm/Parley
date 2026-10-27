@@ -502,3 +502,30 @@ it does not perform a full restore every minute or prove physical erasure.
 Retain scheduled restore drills and the independent deletion-journal recovery
 procedure. The existing application source/image and schema are unchanged by
 this monitoring rollout.
+
+## Bundled usage analytics gate
+
+The frontend replaces the legacy `/analytics.js` bootstrap with one bundled
+adapter (`web/src/lib/analytics.ts`) initialized from `main.tsx`. Public
+`meta[name="app-analytics"]` in `web/index.html` restricts the website ID to
+`scrum.matthew.systems`. Keep `data-named-events="false"` until plan005 custody
+and plan006 release evidence pass. This switch is public deployment
+configuration, not a secret or an authorization boundary. No server environment
+reader or endpoint change is introduced here. Gateway `/a/script.js` and
+`/a/api/send` stay unchanged; do not independently activate or reroute a shared
+collector based on this frontend change.
+
+The adapter uses the Umami3.0.3-compatible manual-track/before-send interface,
+with automatic tracking disabled to avoid duplicate SPA events. Route changes
+and initial readiness share one page-attempt deduplication path. Only fixed
+page categories, fixed title and empty referrer leave the projection. DNT and
+browser-local `umami.disabled` are rechecked for every attempted send; denied
+storage fails closed absent an explicit active-document choice. **Usage
+privacy** is reachable without identity, including standalone guest/link and
+presentation routes. Delivery failures drop signals without retry or persistent
+queue. Existing analytics is not erased by this control.
+
+The accepted90-day raw analytics policy remains an operator obligation distinct
+from app-content erasure. No collector expiry/backup/restore guarantee is
+established by these client tests. Keep expanded events off until the separately
+reviewed collector custody changes and deployed ingestion/negative tests pass.
