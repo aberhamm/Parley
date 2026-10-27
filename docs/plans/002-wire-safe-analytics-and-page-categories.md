@@ -1,15 +1,16 @@
 ---
 id: 002
 title: Wire safe analytics and correct page categories
-status: blocked
+status: pending
 blocked-by: [001]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
-needs-review: design
+needs-review: none
 review-required: eng,design
 created: 2026-10-27
 reviews:
   - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=design verdict=approved date=2026-10-27 by=codex-formal-plan-review
 ---
 
 ## Plain-English Summary
