@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="scrum-pro-analytics-v1" source={["web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-analytics-v1" source={["web/src/pages/Landing.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/InvitationPage.tsx", "web/src/pages/LinkPage.tsx", "web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -193,6 +193,17 @@ requests and ambiguous failures are dropped, without a persistent queue or
 automatic replay. Counts describe observed browser actions, not unique people,
 meetings or authoritative business records. Expanded named-event collection is
 disabled by default pending collector custody and release validation.
+
+When enabled after those gates, explicit successful workspace creation, join,
+invitation acceptance, guest-link redemption and session creation callbacks can
+send finite action events. Session kind is only `poker`, `standup` or `other`.
+Only workspace/session creation refusals and unknown transport outcomes have
+error events, with fixed flow/category values and no exception text. Preview,
+rendering, existing membership, sign-in prompts and local validation emit no
+success event. A repeated acknowledged action may count again; a lost success
+response may hide a real creation even when a later retry succeeds. These are
+separate observations, not paired attempts or an exact conversion rate.
+Navigation failure after acknowledged creation does not change its event.
 
 The operator has accepted a 90-day policy for raw analytics; this is separate
 from application erasure and app backup retention. The adapter does not enforce

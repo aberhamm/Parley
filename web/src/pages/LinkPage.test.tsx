@@ -1,3 +1,4 @@
+import { captureAnalytics } from "../test/analytics";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -96,6 +97,7 @@ describe("LinkPage", () => {
   // and the UI must not guess which — telling a holder "expired" rather than
   // "wrong" tells them the token was real.
   it("says the link no longer works, without echoing the token", async () => {
+    const captured = captureAnalytics("/link#t=PRIVATE-TOKEN");
     redeem = () => {
       throw new ApiError(404, "this link is not valid");
     };
@@ -109,6 +111,7 @@ describe("LinkPage", () => {
     expect(alert.textContent).not.toMatch(/tok-abc/);
     expect(document.body.textContent).not.toMatch(/tok-abc/);
     expect(navigated).toEqual([]);
+    expect(captured.events()).toEqual([]);
   });
 
   // The fragment is wiped on arrival and the token then lives only in React
@@ -137,4 +140,34 @@ describe("LinkPage", () => {
     expect(screen.queryByLabelText("Your name")).toBe(null);
     expect(calls()).toEqual([]);
   });
+});
+
+it("observes one guest redemption across rerenders, excluding the credential and identity", async () => {
+ const captured = captureAnalytics("/link#t=PRIVATE-TOKEN");
+ const {rerender} = renderApp(<LinkPage />, {route:"/link"});
+ expect(captured.events()).toEqual([]);
+ await userEvent.type(await screen.findByLabelText("Your name"), "PRIVATE-NAME");
+ const button = screen.getByRole("button", {name:"Take a seat"});
+ await userEvent.click(button); await userEvent.click(button);
+ rerender(<LinkPage />);
+ await waitFor(() => expect(captured.events()).toEqual([{name:"guest_link_redeemed",data:{schema:1}}]));
+ expect(JSON.stringify(captured.payloads)).not.toMatch(/PRIVATE|sess-1|guest-1|Priya/);
+});
+
+it.each(["disabled", "optout", "dnt", "missing", "throws", "rejects"])("preserves successful redemption when analytics %s", async (mode) => {
+ const captured=captureAnalytics("/link#t=PRIVATE-TOKEN");
+ if(mode === "disabled") document.querySelector<HTMLMetaElement>('meta[name="app-analytics"]')!.dataset.namedEvents="false";
+ if(mode === "optout") localStorage.setItem("umami.disabled","1");
+ if(mode === "dnt") window.doNotTrack="1";
+ if(mode === "missing") delete window.umami;
+ if(mode === "throws") window.umami={track(){throw new Error("synthetic tracker failure");}};
+ if(mode === "rejects") window.umami={track(){return Promise.reject(new Error("synthetic tracker rejection"));}};
+ renderApp(<LinkPage />, {route:"/link"});
+ await userEvent.type(await screen.findByLabelText("Your name"),"PRIVATE-NAME");
+ await userEvent.click(screen.getByRole("button",{name:"Take a seat"}));
+ await waitFor(() => expect(navigated).toEqual(["/session/sess-1"]));
+ expect(linkGuestFor("sess-1")?.me.name).toBe("Priya");
+ expect(captured.events()).toEqual([]);
+ delete window.doNotTrack;
+ localStorage.removeItem("umami.disabled");
 });

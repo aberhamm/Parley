@@ -1,3 +1,4 @@
+import { captureAnalytics } from "../test/analytics";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,6 +10,18 @@ import { expectNoViolations } from "../test/axe";
 import { SpacePage } from "./SpacePage";
 import { rememberOpenSession } from "../lib/sessionMemory";
 import { inviteLink } from "../lib/invite";
+
+const navigationState = vi.hoisted(() => ({ fail: false }));
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return { ...actual, useNavigate: () => {
+    const navigate = actual.useNavigate();
+    return (...args: Parameters<typeof navigate>) => {
+      if (navigationState.fail) throw new Error("Could not navigate after success");
+      return navigate(...args);
+    };
+  } };
+});
 
 const me: Me = { id: "marcus", name: "Marcus Okonjo", avatarHue: 40 };
 
@@ -115,9 +128,12 @@ vi.mock("../lib/api", async () => {
   };
 });
 
+const baseAnalyticsApi = vi.mocked(api).getMockImplementation()!;
+
 // The api mock is module-scoped, so its call log outlives a test. Tests that
 // count calls need the log to be about their own render and nothing else.
 beforeEach(() => {
+  navigationState.fail = false;
   vi.mocked(api).mockClear();
   view = space;
   failSpace = false;
@@ -701,6 +717,7 @@ describe("SpacePage create dialog", () => {
   });
 
   it("offers a server-offered plugin kind by its display name and creates it with an empty config", async () => {
+    const captured = captureAnalytics("/o/acme/s/platform-team");
     space.kinds = ["acme.retro", "poker", "standup"];
     space.kindOptions = [
       { kind: "acme.retro", display: "Retrospective", plugin: true },
@@ -726,6 +743,7 @@ describe("SpacePage create dialog", () => {
           ([m, p]) => m === "POST" && String(p).endsWith("/sessions"),
         );
         expect(create?.[2]).toEqual({ kind: "acme.retro", title: "Sprint 12 retro", config: {} });
+        expect(captured.events()).toEqual([{ name: "session_created", data: { schema: 1, kind: "other" } }]);
       });
     } finally {
       delete space.kinds;
@@ -2579,4 +2597,96 @@ it("offers OIDC sign-in to returning members at an invitation-only workspace", a
  renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
  const link = await screen.findByRole("link",{name:"Sign in"});
  expect(link.getAttribute("href")).toBe("/auth/login?next=%2Fo%2Facme%2Fs%2Fplatform-team");
+});
+
+describe("SpacePage observed outcomes", () => {
+ beforeEach(() => { vi.mocked(api).mockImplementation(baseAnalyticsApi); });
+ it("observes acknowledged joins once, never membership reads", async () => {
+  const captured = captureAnalytics("/o/acme/s/platform-team#c=PRIVATE-CODE");
+  view = {slug:space.slug,name:space.name,protected:true};
+  const {rerender} = renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+  await waitFor(() => expect(captured.events()).toEqual([{name:"workspace_joined",data:{schema:1}}]));
+  rerender(<SpacePage />);
+  expect(captured.events()).toHaveLength(1);
+  expect(JSON.stringify(captured.payloads)).not.toMatch(/PRIVATE|platform-team|acme/);
+ });
+ it.each(["poker", "standup"])("observes %s creation after success, not dialog opening", async (kind) => {
+  const captured = captureAnalytics("/o/acme/s/platform-team");
+  const original = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (method,path,body) => {
+   if(method === "POST" && path.endsWith("/sessions")) return {id:"PRIVATE-SESSION"};
+   return original(method,path,body);
+  });
+  try {
+   renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+   await userEvent.click(await screen.findByRole("button",{name:kind === "poker" ? "New Planning Poker Session" : "New Standup Session"}));
+   const dialog=within(screen.getByRole("dialog"));
+   expect(captured.events()).toEqual([]);
+   await userEvent.type(dialog.getByLabelText("Title"),"PRIVATE TITLE");
+   await userEvent.click(dialog.getByRole("button",{name:"Start session"}));
+   await waitFor(() => expect(captured.events()).toEqual([{name:"session_created",data:{schema:1,kind}}]));
+   expect(JSON.stringify(captured.payloads)).not.toMatch(/PRIVATE|platform-team|acme/);
+  } finally {vi.mocked(api).mockImplementation(original);}
+ });
+});
+
+describe("SpacePage creation failure boundaries", () => {
+ beforeEach(() => { vi.mocked(api).mockImplementation(baseAnalyticsApi); });
+ it.each([new ApiError(403, "PRIVATE REFUSAL"), new TypeError("PRIVATE RESPONSE LOSS")])("classifies the awaited session write and a successful retry (%s)", async (failure) => {
+  const captured = captureAnalytics("/o/acme/s/platform-team");
+  let fail = true;
+  vi.mocked(api).mockImplementation(async (method,path,body) => {
+   if(method === "POST" && path.endsWith("/sessions")) {
+    if(fail) throw failure;
+    return {id:"PRIVATE SESSION"};
+   }
+   return baseAnalyticsApi(method,path,body);
+  });
+  renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+  await userEvent.click(await screen.findByRole("button",{name:"New Planning Poker Session"}));
+  const dialog=within(screen.getByRole("dialog"));
+  await userEvent.type(dialog.getByLabelText("Title"),"PRIVATE TITLE");
+  await userEvent.click(dialog.getByRole("button",{name:"Start session"}));
+  await dialog.findByRole("alert");
+  expect(captured.events()).toEqual([{name:"creation_failed",data:{schema:1,flow:"session_create",category:failure instanceof ApiError ? "rejected" : "outcome_unknown"}}]);
+  fail=false;
+  await userEvent.click(dialog.getByRole("button",{name:"Start session"}));
+  await waitFor(() => expect(captured.events()).toHaveLength(2));
+  expect(captured.events()[1]).toEqual({name:"session_created",data:{schema:1,kind:"poker"}});
+ });
+ it.each(["navigation", "response-use"])("does not turn a post-success %s failure into creation_failed", async (failure) => {
+  navigationState.fail = failure === "navigation";
+  const captured = captureAnalytics("/o/acme/s/platform-team");
+  vi.mocked(api).mockImplementation(async (method,path,body) => {
+   if(method === "POST" && path.endsWith("/sessions")) return failure === "navigation" ? {id:"PRIVATE SESSION"} : undefined;
+   return baseAnalyticsApi(method,path,body);
+  });
+  renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+  await userEvent.click(await screen.findByRole("button",{name:"New Planning Poker Session"}));
+  const dialog=within(screen.getByRole("dialog"));
+  await userEvent.type(dialog.getByLabelText("Title"),"PRIVATE TITLE");
+  await userEvent.click(dialog.getByRole("button",{name:"Start session"}));
+  await dialog.findByRole("alert");
+  expect(captured.events()).toEqual([{name:"session_created",data:{schema:1,kind:"poker"}}]);
+ });
+ it("never reports denied joins or existing membership as success", async () => {
+  const captured = captureAnalytics("/o/acme/s/platform-team#c=PRIVATE-CODE");
+  view={slug:space.slug,name:space.name,protected:true};
+  vi.mocked(api).mockImplementation(async (method,path,body) => {
+   if(path.endsWith("/join")) throw new ApiError(403,"Denied join");
+   return baseAnalyticsApi(method,path,body);
+  });
+  renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+  await screen.findByText("Denied join");
+  expect(captured.events()).toEqual([]);
+ });
+});
+
+it("does not observe existing membership reads as entry", async () => {
+ const captured=captureAnalytics("/o/acme/s/platform-team");
+ vi.mocked(api).mockImplementation(baseAnalyticsApi);
+ const {queryClient}=renderApp(<SpacePage />, {route:"/o/acme/s/platform-team",path:"/o/:org/s/:slug"});
+ await findSessionsHeading();
+ await queryClient.invalidateQueries();
+ expect(captured.events()).toEqual([]);
 });

@@ -71,7 +71,7 @@ It accepts an omitted data object for no-property events, and accepts an
 already projected object only when its schema is exactly numeric 1. It never
 passes an arbitrary caller object through.
 
-| Name | Additional properties | Definition and future call site |
+| Name | Additional properties | Definition and call site |
 | --- | --- | --- |
 | `workspace_created` | None | Initiating `Landing` callback receives a successful create response. |
 | `workspace_joined` | None | Initiating `SpacePage` callback receives successful explicit join response; may be a rejoin. |
@@ -222,3 +222,33 @@ Official version-specific source references, reviewed 27 October 2026:
 - [Umami self-hosting FAQ](https://docs.umami.is/docs/faq) for the absence of
   automatic retention as a self-hosting guarantee. Installed source and actual
   executed receipts remain authoritative for this deployment.
+
+
+## Entry and activation callback coverage (plan 003)
+
+Named collection remains disabled by default. These source callbacks are wired
+for local validation; this is not evidence of real-traffic collection.
+
+| Event | Initiating acknowledged callback | Source test and repeats/omissions |
+| --- | --- | --- |
+| `workspace_created` | `Landing.doCreate`, immediately after POST `/api/spaces` | `Landing.test.tsx`, observed creation outcomes: once per successful callback, including successful hand retry; rerender and failed navigation do not repeat it. Local validation and restored identity alone are absent. |
+| `workspace_joined` | `SpacePage.doJoin`, after the explicit join POST, including a submitted invite credential | `SpacePage.test.tsx`, observed outcomes and creation failure boundaries: cached membership reads do not count; rerenders do not respend an invite; denied joins emit nothing. An acknowledged rejoin may count again. |
+| `invitation_accepted` | `InvitationPage.redeem`, after acceptance POST | `InvitationPage.test.tsx`: preview, missing token, sign-in prompt and failed acceptance emit nothing; successful user retry counts. No invitation data leaves the callback. |
+| `guest_link_redeemed` | `LinkPage.submit`, after signed-link redemption POST | `LinkPage.test.tsx`: busy/re-render guards preserve one redemption; denied/missing credentials emit nothing. No token, name or receipt leaves the callback. |
+| `session_created` | `SpacePage` create-dialog `submit`, after creation POST | `SpacePage.test.tsx`: poker/standup remain exact; plugin kinds map to `other`. Dialog opening and local instant validation emit nothing; scheduled creations are absent. Each acknowledged repeat is another action. |
+| `creation_failed` | Only `Landing.doCreate` and create-dialog `submit`'s awaited write catches | Both page tests exercise explicit `ApiError` refusal (`rejected`) versus transport/response loss (`outcome_unknown`), then a successful retry. Navigation/cache/response-use exceptions after the write resolved never fabricate a creation failure. |
+
+A lost response can hide a successful server creation. Its unknown-outcome
+observation and a later acknowledged retry are not paired outcomes of the same
+attempt, unique workspaces or meetings, or an exact success/failure conversion.
+The API helper can resolve a successful HTTP response without a usable body;
+that acknowledged response still counts, even if opening the result fails.
+These callbacks do not add retries, identifiers, queues, routes or permissions.
+Embedded meeting clients do not mount these entry pages and remain excluded by
+the adapter. Optional analytics transport throws/rejections, missing scripts,
+DNT, opt-out and disabled named events leave acceptance/redemption intact.
+
+The page tests use a synthetic tracker that passes its complete candidate
+payload through the real before-send projection and checks emitted records,
+not a mocked event function. This establishes local app projection behavior;
+it does not establish accepted collector records or collector-derived metadata.
