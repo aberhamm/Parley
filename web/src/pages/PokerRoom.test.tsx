@@ -1,3 +1,4 @@
+import * as analytics from "../lib/analytics";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -3426,4 +3427,109 @@ describe("after the third QA gate", () => {
       page.restore();
     });
   });
+});
+
+
+describe("PokerRoom analytics", () => {
+  it("observes only acknowledged local vote changes, including a successful retry after rollback", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    let accept: (() => void) | undefined;
+    let failed = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("/plugins/panels")) return new Response("[]");
+      if (failed) return new Response('{"error":"denied"}', { status: 403 });
+      await new Promise<void>((resolve) => { accept = resolve; });
+      return new Response(null, { status: 204 });
+    });
+    const view = renderApp(<PokerRoom env={envelope()} me={me} />);
+    await userEvent.click(screen.getByRole("button", { name: "3" }));
+    await screen.findByText("denied");
+    expect(track).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "3" }).getAttribute("aria-pressed")).toBe("false");
+    failed = false;
+    await userEvent.click(screen.getByRole("button", { name: "3" }));
+    expect(track).not.toHaveBeenCalled();
+    accept!();
+    await waitFor(() => expect(track.mock.calls).toEqual([["poker_vote_saved"]]));
+    view.rerender(<PokerRoom env={envelope({ revealed: true, version: 2 })} me={me} />);
+    expect(track.mock.calls).toEqual([["poker_vote_saved"]]);
+  });
+
+  it("counts a failed manual reveal's successful Retry callback and ignores received/automatic reveals", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    let failed = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => String(input).includes("/plugins/panels")
+      ? new Response("[]") : failed ? new Response('{"error":"timeout"}', { status: 504 }) : new Response(null, { status: 204 }));
+    const manual = envelope({ facilitatorId: me.id });
+    manual.state.stories[0].votedUserIds = [me.id];
+    const view = renderApp(<PokerRoom env={manual} me={me} />);
+    await userEvent.click(screen.getByRole("button", { name: "Reveal" }));
+    await screen.findByRole("button", { name: "Try again" });
+    expect(track).not.toHaveBeenCalled();
+    failed = false;
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(track.mock.calls).toEqual([["poker_reveal_requested"]]));
+    const automatic = envelope({ revealed: true, version: 2 });
+    automatic.state.autoReveal = true;
+    view.rerender(<PokerRoom env={automatic} me={me} />);
+    expect(track.mock.calls).toEqual([["poker_reveal_requested"]]);
+  });
+
+  it("observes close only after acknowledgement, never denied or loaded ended rooms", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    let failed = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => String(input).includes("/plugins/panels")
+      ? new Response("[]") : failed ? new Response('{"error":"denied"}', { status: 403 }) : new Response(null, { status: 204 }));
+    const view = renderApp(<PokerRoom env={envelope({ facilitatorId: me.id })} me={me} />);
+    async function close() {
+      await userEvent.click(screen.getByRole("button", { name: "End session" }));
+      await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "End session" }));
+    }
+    await close();
+    await screen.findByText("denied");
+    expect(track).not.toHaveBeenCalled();
+    failed = false;
+    await close();
+    await waitFor(() => expect(track.mock.calls).toEqual([["session_closed", { kind: "poker" }]]));
+    view.rerender(<PokerRoom env={envelope({ endedAt: "2026-10-27" })} me={me} />);
+    expect(track).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+it("analytics opt-out and a throwing tracker never change acknowledged poker writes or close", async () => {
+  const meta = document.createElement("meta");
+  meta.name = "app-analytics";
+  meta.dataset.websiteId = "synthetic-test";
+  meta.dataset.domains = location.hostname;
+  meta.dataset.namedEvents = "true";
+  document.head.appendChild(meta);
+  const tracker = vi.fn(() => { throw new Error("blocked collector"); });
+  window.umami = { track: tracker };
+  analytics.setAnalyticsDisabled(false);
+  analytics.initializeAnalytics();
+  const script = document.getElementById("umami-pageviews")!;
+  script.dispatchEvent(new Event("load"));
+  tracker.mockClear();
+  vi.spyOn(globalThis, "fetch").mockImplementation(answering(new Response(null, { status: 204 })));
+  try {
+    renderApp(<PokerRoom env={envelope({ facilitatorId: me.id })} me={me} />);
+    analytics.setAnalyticsDisabled(true);
+    await userEvent.click(screen.getByRole("button", { name: "3" }));
+    expect(tracker).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "3" }).getAttribute("aria-pressed")).toBe("true");
+    analytics.setAnalyticsDisabled(false);
+    await userEvent.click(screen.getByRole("button", { name: "5" }));
+    expect(tracker).toHaveBeenCalledWith("poker_vote_saved", { schema: 1 });
+    expect(screen.getByRole("button", { name: "5" }).getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "End session" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "End session" }));
+    expect(await screen.findByText("Session closed — members can still open the results")).toBeTruthy();
+  } finally {
+    analytics.setAnalyticsDisabled(false);
+    delete window.umami;
+    script.remove();
+    meta.remove();
+    vi.restoreAllMocks();
+  }
 });
