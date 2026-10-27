@@ -10,6 +10,7 @@ review-required: eng
 created: 2026-10-27
 reviews:
   - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=code verdict=fail date=2026-10-27 by=analytics-validator-standard
 ---
 
 ## Plain-English Summary
