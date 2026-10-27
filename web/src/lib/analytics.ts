@@ -1,3 +1,4 @@
+import policy from "./analytics-policy.json";
 import { analyticsPageCategory, projectAnalyticsEvent, readAnalyticsData } from "./analyticsContract";
 
 declare global {
@@ -48,12 +49,14 @@ export function setAnalyticsDisabled(disabled: boolean) {
 }
 
 function allowed(): boolean {
-  return !analyticsDoNotTrack() && !analyticsPreference().endsWith("disabled");
+  try { return window.top === window.self && !analyticsDoNotTrack() && !analyticsPreference().endsWith("disabled"); }
+  catch { return false; }
 }
 function configuration() {
   const meta = document.querySelector<HTMLMetaElement>('meta[name="app-analytics"]');
-  if (!meta?.dataset.websiteId || !meta.dataset.domains?.split(",").includes(location.hostname)) return null;
-  return { website: meta.dataset.websiteId, named: meta.dataset.namedEvents === "true" };
+  if (!meta || meta.dataset.websiteId !== policy.website || location.hostname !== policy.hostname
+    || !meta.dataset.domains?.split(",").map((host) => host.trim()).includes(policy.hostname)) return null;
+  return { named: meta.dataset.namedEvents === "true" };
 }
 
 /** One bundled guard, installed before the version-compatible script can send. */
@@ -73,7 +76,7 @@ function installAnalytics() {
       if (!values) return false;
       const url = analyticsPageCategory(location.pathname);
       if (url === null) return false;
-      const base = { website: config.website, hostname: location.hostname, url, title: "Scrum Pro", referrer: "" };
+      const base = { website: policy.website, hostname: policy.hostname, url, title: policy.title, referrer: "" };
       if (values.name !== undefined) {
         if (!config.named) return false;
         const event = projectAnalyticsEvent(values.name, values.data);
@@ -89,7 +92,7 @@ function installAnalytics() {
   script.src = "/a/script.js";
   script.defer = true;
   script.referrerPolicy = "no-referrer";
-  script.dataset.websiteId = config.website;
+  script.dataset.websiteId = policy.website;
   script.dataset.beforeSend = "appUmamiBeforeSend";
   script.dataset.autoTrack = "false"; // Confirmed supported by the pinned 3.0.3 fixture.
   script.dataset.doNotTrack = "true";

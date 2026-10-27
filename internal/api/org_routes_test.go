@@ -250,6 +250,30 @@ func TestEverySpaceLookupIsGated(t *testing.T) {
 // org prefix. chi.Walk cannot see r.NotFound or a plain http.Handler mount, so
 // the SPA fallback is not in this table and does not need to be.
 var routeScoping = map[string]string{
+	"CONNECT /a": "anonymous-exempt",
+	"DELETE /a":  "anonymous-exempt",
+	"GET /a":     "anonymous-exempt",
+	"HEAD /a":    "anonymous-exempt",
+	"OPTIONS /a": "anonymous-exempt",
+	"PATCH /a":   "anonymous-exempt",
+	"POST /a":    "anonymous-exempt",
+	"PUT /a":     "anonymous-exempt",
+	"TRACE /a":   "anonymous-exempt",
+	"QUERY /a":   "anonymous-exempt",
+
+	"GET /a/script.js": "anonymous-exempt",
+	"POST /a/api/send": "anonymous-exempt",
+	"CONNECT /a/*":     "anonymous-exempt",
+	"DELETE /a/*":      "anonymous-exempt",
+	"GET /a/*":         "anonymous-exempt",
+	"HEAD /a/*":        "anonymous-exempt",
+	"OPTIONS /a/*":     "anonymous-exempt",
+	"PATCH /a/*":       "anonymous-exempt",
+	"POST /a/*":        "anonymous-exempt",
+	"PUT /a/*":         "anonymous-exempt",
+	"QUERY /a/*":       "anonymous-exempt",
+	"TRACE /a/*":       "anonymous-exempt",
+
 	"GET /api/orgs/{org}/spaces/{slug}/privacy":                       "org-scoped",
 	"PUT /api/orgs/{org}/spaces/{slug}/privacy":                       "org-scoped",
 	"POST /api/invitations/preview":                                   "non-slug",

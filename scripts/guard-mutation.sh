@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 # The guards no longer all live in one package: the plugin sandbox has a
 # frontend half now, so a tree here is either a Go package or the web app, and
 # `target` switches which one the mutations below are aimed at.
-TREES=(internal/plugin internal/plugin/bundle internal/api internal/store web/src cmd/parley internal/standup internal/poker internal/poker/publication)
+TREES=(internal/analyticsrelay internal/plugin internal/plugin/bundle internal/api internal/store web/src cmd/parley internal/standup internal/poker internal/poker/publication)
 BACKUP=$(mktemp -d)
 LOG=$(mktemp)
 
@@ -51,6 +51,10 @@ target() {
 failures=0
 harness_failures=0
 checked=0
+# Optional exact-name selector for a failed relay mutation recheck. All guards
+# remain in the normal CI run; an unmatched selector must never report success.
+RELAY_MUTATION_FILTER=""
+if [ "${1:-}" = "--analytics-relay" ]; then RELAY_MUTATION_FILTER="${2:-}"; fi
 
 patch_once() {
     python3 -c 'import sys
@@ -94,7 +98,7 @@ run_tests() {
     fi
     # -timeout keeps a mutation that removes a timeout from hanging the leg
     # forever; a hung run is still a red run, which is the answer we want.
-    go test "$PKG" -run "$spec" -count=1 -timeout 120s >"$LOG" 2>&1
+    go test -p 1 "$PKG" -run "$spec" -count=1 -timeout 120s >"$LOG" 2>&1
 }
 
 # web_spec_ok <name> <spec> — the target of a web guard must actually exist.
@@ -160,6 +164,7 @@ baseline_ok() {
 # at every site at once.
 mutate() {
     local name=$1 tests=$2
+    if [ -n "$RELAY_MUTATION_FILTER" ] && [ "$name" != "$RELAY_MUTATION_FILTER" ]; then return; fi
     shift 2
     checked=$((checked + 1))
     cp -a "$BACKUP/${SRC//\//_}"/. "$SRC"/
@@ -215,7 +220,7 @@ mutate() {
             harness_failures=$((harness_failures + 1))
             return
         fi
-    elif ! go test -run 'XXNONEXX' -count=1 "$PKG" >"$LOG" 2>&1; then
+    elif ! go test -p 1 -run 'XXNONEXX' -count=1 "$PKG" >"$LOG" 2>&1; then
         echo "MUTATION DID NOT COMPILE: $name — a build break is not a caught mutation."
         sed -n '1,40p' "$LOG"
         harness_failures=$((harness_failures + 1))
@@ -234,6 +239,12 @@ mutate() {
 # Analytics guards share this harness's baseline, compile and restoration checks.
 analytics_mutations() {
     target web/src web
+    mutate "analytics canonical fixed pins" \
+        "src/lib/analytics.test.ts::consumes canonical fixed pins in the actual adapter and rejects metadata drift" \
+        lib/analytics.ts 'title: policy.title' 'title: "Scrum Pro"'
+    mutate "analytics embedded frame suppression" \
+        "src/lib/analytics.test.ts::suppresses initial and late collection in embedded frames" \
+        lib/analytics.ts 'window.top === window.self && ' ''
     mutate "analytics per-send preference" \
         "src/lib/analytics.test.ts::reevaluates opt-out for every send and late callback" \
         lib/analytics.ts 'if (!allowed() || type !== "event"' 'if (false || type !== "event"'
@@ -250,7 +261,7 @@ analytics_mutations() {
         lib/analytics.ts 'script.dataset.doNotTrack = "true";' 'script.dataset.doNotTrack = "false";'
     mutate "analytics fixed route projection" \
         "src/lib/analytics.test.ts::projects all page fields into the fixed route category" \
-        lib/analytics.ts 'hostname: location.hostname, url, title:' 'hostname: location.hostname, url: location.pathname, title:'
+        lib/analytics.ts 'hostname: policy.hostname, url, title:' 'hostname: policy.hostname, url: location.pathname, title:'
     # Ceremony observations are deliberately local and best effort. These
     # mutations exercise eligibility and mounted-room scope, not unique people.
     mutate "analytics room once per view" \
@@ -281,6 +292,123 @@ analytics_mutations() {
         "src/pages/StandupRoom.test.tsx::ignores seed data and failed autosaves; counts the first accepted local save once per mount" \
         pages/StandupRoom.tsx 'if (!participated.current) {' 'if (true) {'
 }
+relay_mutations() {
+    target internal/analyticsrelay
+    mutate 'relay exact JSON key spelling' 'TestCaseVariantKeysRefused' \
+        'policy.go' 'if err := exactFields(b, reflect.TypeOf(out).Elem()); err != nil {' 'if err := exactFields(b, reflect.TypeOf(out).Elem()); false && err != nil {'
+    mutate 'relay duplicate JSON' 'TestRefusals/duplicate' \
+        'policy.go' '!ok || seen[key]' '!ok'
+    mutate 'relay trailing JSON' 'TestRefusals/trailing' \
+        'policy.go' 'if _, err := d.Token(); err != io.EOF {' 'if _, err := d.Token(); false && err != io.EOF {' \
+        'policy.go' 'json.Unmarshal(b, &raw)' 'json.NewDecoder(bytes.NewReader(b)).Decode(&raw)'
+    mutate 'relay unknown JSON fields' 'TestRefusals/extra' \
+        'policy.go' 'd.DisallowUnknownFields()' '// unknown fields allowed' \
+        'policy.go' 'if err := exactFields(b, reflect.TypeOf(out).Elem()); err != nil {' 'if err := exactFields(b, reflect.TypeOf(out).Elem()); false && err != nil {'
+    mutate 'relay fixed site' 'TestRefusals/site' \
+        'policy.go' 'e.Payload.Website != policy.Website' 'false'
+    mutate 'relay finite page fields' 'TestWireBoundaries' \
+        'policy.go' 'e.Payload.Hostname != policy.Hostname' 'false'
+    mutate 'relay fixed title' 'TestWireBoundaries' \
+        'policy.go' 'e.Payload.Title != policy.Title' 'false'
+    mutate 'relay fixed referrer' 'TestWireBoundaries' \
+        'policy.go' 'e.Payload.Referrer != ""' 'false'
+    mutate 'relay finite URL' 'TestRefusals/rawurl' \
+        'policy.go' '!contains(policy.Pages, e.Payload.URL)' 'false'
+    mutate 'relay contract schema' 'TestWireBoundaries' \
+        'policy.go' 'string(data["schema"]) != "1"' 'false'
+    mutate 'relay enum catalog' 'TestWireBoundaries' \
+        'policy.go' '!contains(allowed, value)' 'false && !contains(allowed, value)'
+    mutate 'relay admission artifact' 'TestSameVersionDifferentArtifactAndRestart' \
+        'admission.go' 'a.AppBuild == r.cfg.ArtifactSHA256' 'true'
+    mutate 'relay policy binding' 'TestAdmissionFailures/policy' \
+        'admission.go' 'a.PolicySHA256 == PolicySHA256()' 'true'
+    mutate 'relay collector binding' 'TestEveryAdmissionPin/collector_image' \
+        'admission.go' 'a.CollectorImage == policy.CollectorImage' 'true'
+    mutate 'relay tracker binding' 'TestEveryAdmissionPin/tracker_sha256' \
+        'admission.go' 'a.TrackerSHA256 == policy.TrackerSHA256' 'true'
+    mutate 'relay site binding' 'TestEveryAdmissionPin/website_id' \
+        'admission.go' 'a.WebsiteID == policy.Website' 'true'
+    mutate 'relay collector version' 'TestEveryAdmissionPin/collector_version' \
+        'admission.go' 'a.CollectorVersion == policy.CollectorVersion' 'true'
+    mutate 'relay nonready admission' 'TestAdmissionFailures/maintenance' \
+        'admission.go' 'a.State == "ready"' 'true'
+    mutate 'relay expired admission' 'TestAdmissionFailures/stale' \
+        'admission.go' 'until.After(now)' 'true'
+    mutate 'relay future skew' 'TestAdmissionFailures/future' \
+        'admission.go' 'checked.Before(now.Add(5*time.Second))' 'true'
+    mutate 'relay lease cap' 'TestAdmissionFailures/longlease' \
+        'admission.go' 'until.Sub(checked) <= 60*time.Second' 'true'
+    mutate 'relay receipt symlink' 'TestAdmissionFailures/symlink' \
+        'admission.go' 'syscall.O_NOFOLLOW|' '0|'
+    mutate 'relay receipt permissions' 'TestAdmissionFailures/permissions' \
+        'admission.go' 'info.Mode().Perm()&0022 == 0' 'true'
+    mutate 'relay Authorization' 'TestRefusals/auth' \
+        'relay.go' 'req.Header.Get("Authorization") != ""' 'false'
+    mutate 'relay DNT' 'TestRefusals/dnt' \
+        'relay.go' 'req.Header.Get("DNT") == "1"' 'false'
+    mutate 'relay Origin' 'TestRefusals/origin' \
+        'relay.go' 'o != "" && o != r.cfg.Origin' 'false && o != r.cfg.Origin'
+    mutate 'relay fetch site' 'TestRefusals/fetch' \
+        'relay.go' 'site != "" && site != "same-origin" && site != "none"' 'false && site != "none"'
+    mutate 'relay host' 'TestConfigAndOriginBoundaries/host' \
+        'relay.go' 'req.Host != origin.Host' 'false && req.Host != origin.Host'
+    mutate 'relay query' 'TestRefusals/query' \
+        'relay.go' 'req.URL.RawQuery != ""' 'false'
+    mutate 'relay default off' 'TestConfigAndOriginBoundaries/defaultoff' \
+        'relay.go' '!r.enabled()' 'false'
+    mutate 'relay inflight cap' 'TestCancellationAndSaturation' \
+        'relay.go' 'make(chan struct{}, 8)' 'make(chan struct{}, 9)'
+    mutate 'relay rate cap' 'TestCancellationAndSaturation' \
+        'relay.go' 'if r.tokens < 1 {' 'if false {'
+    mutate 'relay script hash' 'TestScriptHashAndRedirect' \
+        'relay.go' 'hex.EncodeToString(sum[:]) != policy.TrackerSHA256' 'false && hex.EncodeToString(sum[:]) != policy.TrackerSHA256'
+    mutate 'relay redirect refusal' 'TestScriptHashAndRedirect' \
+        'relay.go' 'return http.ErrUseLastResponse' 'return nil'
+    # This is literal Go source (including its raw-string backticks), never shell expansion.
+    # shellcheck disable=SC2016
+    mutate 'relay response cache projection' 'TestProjectionAndPrivateResponse' \
+        'relay.go' 'w.Write([]byte("{}"))' 'w.Write([]byte(`{"cache":"secret"}`))'
+    mutate 'relay deadline write' 'TestWriteDeadlineIsReal' \
+        'relay.go' 'http.NewResponseController(w).SetWriteDeadline(deadline)' 'http.NewResponseController(w).SetReadDeadline(deadline)'
+    mutate 'relay whole operation budget' 'TestSnapshotAcrossAtomicPublication/expired' \
+        'relay.go' 'context.WithTimeout(req.Context(), 5*time.Second)' 'context.WithTimeout(req.Context(), 50*time.Second)'
+    mutate 'relay request size cap' 'TestRefusals/oversize' \
+        'relay.go' 'io.LimitReader(req.Body, 16385)' 'io.LimitReader(req.Body, 1048576)' \
+        'relay.go' 'len(b) > 16384' 'len(b) > 1048576'
+    mutate 'relay receipt size cap' 'TestAdmissionFailures/oversize' \
+        'admission.go' 'info.Size() > 8192' 'info.Size() > 1048576' \
+        'admission.go' 'io.LimitReader(f, 8193)' 'io.LimitReader(f, 1048576)' \
+        'admission.go' 'len(b) > 8192' 'len(b) > 1048576'
+    mutate 'relay script read cap' 'TestScriptConsumptionBound' \
+        'relay.go' 'io.LimitReader(resp.Body, 262145)' 'io.LimitReader(resp.Body, 524289)'
+    mutate 'relay actual body read deadline' 'TestRealSlowBodyDeadline' \
+        'relay.go' 'time.Now().Add(2*time.Second)' 'time.Now().Add(20*time.Second)'
+    mutate 'relay credential header projection' 'TestProjectionAndPrivateResponse' \
+        'relay.go' 'upstream.Header.Set("User-Agent", "Parley-Analytics-Relay/1")' 'upstream.Header = req.Header.Clone(); upstream.Header.Set("User-Agent", "Parley-Analytics-Relay/1")'
+    mutate 'relay native header projection' 'TestProjectionAndPrivateResponse' \
+        'relay.go' 'defer resp.Body.Close()' 'defer resp.Body.Close(); w.Header().Set("Set-Cookie",resp.Header.Get("Set-Cookie"))'
+    mutate 'relay generation schema' 'TestEveryAdmissionPin/contract_schema' \
+        'admission.go' 'a.ContractSchema == policy.Schema' 'true'
+    mutate 'relay unsafe state directory' 'TestAdmissionFailures/parentpermissions' \
+        'admission.go' 'if !safeDirectory(r.cfg.StateDir) {' 'if false && !safeDirectory(r.cfg.StateDir) {'
+    mutate 'relay nonregular receipt' 'TestAdmissionFailures/fifo' \
+        'admission.go' '!info.Mode().IsRegular()' 'false'
+    restore_all
+    target internal/api
+    mutate 'relay enabled-router bearer guard' 'TestAnalyticsEnabledRouterRejectsBearerWithReadyReceipt' \
+        '../analyticsrelay/relay.go' 'req.Header.Get("Authorization") != ""' 'false'
+    restore_all
+    target internal/plugin
+}
+if [ "${1:-}" = "--analytics-relay" ]; then
+    relay_mutations
+    if [ "$checked" -eq 0 ]; then echo "no relay mutation matched the exact selector"; exit 1; fi
+    if [ "$failures" -ne 0 ] || [ "$harness_failures" -ne 0 ]; then exit 1; fi
+    echo "all $checked relay guard mutations were caught."
+    exit 0
+fi
+if [ "${1:-}" != "--analytics" ]; then relay_mutations; fi
+
 analytics_mutations
 if [ "${1:-}" = "--analytics" ]; then
     if [ "$failures" -ne 0 ] || [ "$harness_failures" -ne 0 ]; then exit 1; fi

@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import fixturePolicy from "./analytics-policy.json";
+// Only this test module injects synthetic policy pins. Production has no
+// window/global/env override for fixed telemetry fields.
+vi.mock("./analytics-policy.json", async (importOriginal) => {
+  const actual = await importOriginal<{ default: typeof fixturePolicy }>();
+  return { default: { ...actual.default, website: "test-site", hostname: "localhost", title: "Scrum Pro" } };
+});
 let analytics: typeof import("./analytics");
 beforeEach(async () => {
   vi.resetModules();
+  fixturePolicy.website = "test-site"; fixturePolicy.hostname = "localhost"; fixturePolicy.title = "Scrum Pro";
   document.head.innerHTML = '<meta name="app-analytics" data-website-id="test-site" data-domains="localhost" data-named-events="false">';
   localStorage.clear();
   history.replaceState({}, "", "/o/private-org/s/private-space/settings?token=SECRET#SECRET");
@@ -140,4 +148,37 @@ describe("analytics adapter", () => {
     expect(analytics.analyticsPreference()).toBe("temporary-disabled");
     expect(window.appUmamiBeforeSend!("event",{})).toBe(false);
   });
+});
+
+it("suppresses initial and late collection in embedded frames", () => {
+  const original = window;
+  const frame = new Proxy(original, { get(target, key) { return key === "top" ? {} : Reflect.get(target, key); } });
+  vi.stubGlobal("window", frame);
+  try {
+    analytics.initializeAnalytics();
+    expect(document.querySelector("#umami-pageviews")).toBeNull();
+  } finally { vi.unstubAllGlobals(); }
+  const track = load(true);
+  vi.stubGlobal("window", frame);
+  try {
+    analytics.trackAnalyticsPage(); analytics.trackAnalyticsEvent("workspace_created");
+    expect(window.appUmamiBeforeSend!("event", {})).toBe(false);
+    expect(track).not.toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); }
+});
+
+it("consumes canonical fixed pins in the actual adapter and rejects metadata drift", () => {
+  fixturePolicy.title = "Canonical fixture title";
+  load();
+  expect(window.appUmamiBeforeSend!("event", {})).toEqual({ website: fixturePolicy.website, hostname: fixturePolicy.hostname, url: "/workspace-settings", title: fixturePolicy.title, referrer: "" });
+});
+it("refuses an independently selected metadata website", () => {
+  document.querySelector<HTMLMetaElement>('meta[name="app-analytics"]')!.dataset.websiteId = "other-site";
+  analytics.initializeAnalytics();
+  expect(document.querySelector("#umami-pageviews")).toBeNull();
+});
+it("refuses a document outside the canonical host even if metadata allows it", () => {
+  fixturePolicy.hostname = "other.example.invalid";
+  analytics.initializeAnalytics();
+  expect(document.querySelector("#umami-pageviews")).toBeNull();
 });
