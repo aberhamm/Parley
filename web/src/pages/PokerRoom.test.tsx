@@ -7,6 +7,12 @@ import { makePerson, pageStatus, renderApp } from "../test/render";
 import type { Envelope, Me } from "../lib/api";
 import { expectNoViolations } from "../test/axe";
 
+// Match the synthetic metadata only in Vitest; production canonical pins stay fixed.
+vi.mock("../lib/analytics-policy.json", async (importOriginal) => {
+  const actual = await importOriginal<{ default: typeof import("../lib/analytics-policy.json") }>();
+  return { default: { ...actual.default, website: "synthetic-test", hostname: "localhost", title: "Scrum Pro" } };
+});
+
 const me: Me = { id: "marcus", name: "Marcus Okonjo", avatarHue: 40 };
 
 it("counts and deals only retained planning stories from a split", () => {
@@ -3525,6 +3531,10 @@ it("analytics opt-out and a throwing tracker never change acknowledged poker wri
     await userEvent.click(screen.getByRole("button", { name: "End session" }));
     await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "End session" }));
     expect(await screen.findByText("Session closed — members can still open the results")).toBeTruthy();
+    expect(tracker).toHaveBeenCalledWith("session_closed", { schema: 1, kind: "poker" });
+    // A disabled adapter cannot satisfy this: the optional transport really threw.
+    expect(tracker.mock.results.length).toBeGreaterThan(0);
+    expect(tracker.mock.results.every((result) => result.type === "throw")).toBe(true);
   } finally {
     analytics.setAnalyticsDisabled(false);
     delete window.umami;

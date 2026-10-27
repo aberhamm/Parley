@@ -10,6 +10,12 @@ import type { StandupEntry } from "./StandupRoom";
 import type { Commitment } from "../components/Commitments";
 import { expectNoViolations } from "../test/axe";
 
+// Match the synthetic metadata only in Vitest; production canonical pins stay fixed.
+vi.mock("../lib/analytics-policy.json", async (importOriginal) => {
+  const actual = await importOriginal<{ default: typeof import("../lib/analytics-policy.json") }>();
+  return { default: { ...actual.default, website: "synthetic-test", hostname: "localhost", title: "Scrum Pro" } };
+});
+
 function roomCalls(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls.filter((c) => !String(c[0]).includes("/plugins/panels"));
 }
@@ -2743,6 +2749,10 @@ it("analytics opt-out and a throwing tracker never change acknowledged standup w
     await userEvent.click(screen.getByRole("button", { name: "End standup" }));
     expect(tracker).toHaveBeenCalledWith("session_closed", { schema: 1, kind: "standup" });
     expect(await screen.findByText("Session closed — members can still open the results")).toBeTruthy();
+    expect(tracker).toHaveBeenCalledWith("session_closed", { schema: 1, kind: "standup" });
+    // A disabled adapter cannot satisfy this: the optional transport really threw.
+    expect(tracker.mock.results.length).toBeGreaterThan(0);
+    expect(tracker.mock.results.every((result) => result.type === "throw")).toBe(true);
   } finally {
     analytics.setAnalyticsDisabled(false);
     delete window.umami;
