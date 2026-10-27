@@ -1,4 +1,12 @@
+import { vi } from "vitest";
 import { initializeAnalytics } from "../lib/analytics";
+
+// Synthetic pins belong only to this Vitest fixture. Keep the production
+// adapter's canonical policy checks and the complete payload assertions intact.
+vi.mock("../lib/analytics-policy.json", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/analytics-policy.json")>();
+  return { default: { ...actual.default, website: "synthetic-site", hostname: "localhost", title: "Scrum Pro" } };
+});
 
 /** Synthetic tracker: exercise the real adapter and its full before-send projection. */
 export function captureAnalytics(path: string) {
