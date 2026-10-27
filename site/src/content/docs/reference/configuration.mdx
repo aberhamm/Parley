@@ -6,7 +6,7 @@ description: Every environment variable, its default, and whether a bad value st
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import EnvVar from "../../../components/EnvVar.astro";
 
-<VerifiedStamp version="unreleased" source={["cmd/parley/main.go", "internal/api/invitations.go", "web/embed.go", "internal/store/kudos.go", "cmd/parley/configfile.go", "internal/db/tls.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/api/standup_webhook.go", "internal/api/embed.go", "internal/plugin/secrets.go", "internal/plugin/bundles.go", "internal/plugin/runtime.go", "internal/api/pluginframe.go"]} />
+<VerifiedStamp version="unreleased" source={["cmd/parley/main.go", "cmd/parley/analytics_identity.go", "internal/analyticsrelay/relay.go", "internal/analyticsrelay/admission.go", "internal/api/invitations.go", "web/embed.go", "internal/store/kudos.go", "cmd/parley/configfile.go", "internal/db/tls.go", "internal/api/client_address.go", "internal/api/secevent.go", "internal/api/standup_webhook.go", "internal/api/embed.go", "internal/plugin/secrets.go", "internal/plugin/bundles.go", "internal/plugin/runtime.go", "internal/api/pluginframe.go"]} />
 
 Configuration is environment variables, optionally backed by a file that fills
 the gaps (`PARLEY_CONFIG_FILE`, below). The `-healthcheck` flag probes readiness. Operators can issue a first host
@@ -625,3 +625,45 @@ normal database/BASE_URL configuration and keep its printed link private.
 Invitations expire in seven days and work once. Existing accounts/owners are
 not automatically promoted. Issue host invitations for trusted owners before
 enabling the new policy in an existing deployment.
+
+## Private analytics relay
+
+<EnvVar name="ANALYTICS_RELAY_URL" default="empty">
+Optional Scrum Pro relay, disabled by default. The only accepted value is
+`http://scrum-analytics-collector:3000`; arbitrary hosts, credentials, paths and
+query strings are refused. Set it together with `ANALYTICS_RELAY_STATE_DIR`.
+Invalid or incomplete analytics settings disable the relay, without stopping
+the application, sign-in, meetings, liveness or readiness. They never enable
+collection using a fallback collector.
+</EnvVar>
+
+<EnvVar name="ANALYTICS_RELAY_STATE_DIR" default="empty">
+Absolute private operator-owned directory, mounted **as a whole directory,
+read-only**, normally `/run/parley-analytics`. Do not use a single-file or
+Kubernetes `subPath` mount: the producer atomically replaces `admission.json`.
+Each request requires a fresh ready receipt bound to the exact policy, site,
+tracker, collector and the SHA256 of the actual running executable. Production
+Linux hashes `/proc/self/exe` at startup; semantic Version and image tags are
+not executable identities. Unavailable identity (including unsupported local
+non-Linux custody) disables analytics only. The image filesystem must remain
+immutable with no executable override. There is no digest environment override.
+</EnvVar>
+
+The two public endpoints are `GET /a/script.js` and `POST /a/api/send`, outside
+application authentication and database middleware. They ignore incoming
+cookies and refuse Authorization, DNT and cross-origin requests. They forward
+only projected schema-1 events and fixed page categories, with a fixed relay
+User-Agent; browser cookies, addresses, referrers and native cache tokens are
+never forwarded. Counts do not identify people or reconstruct individual flows.
+A successful send returns `200 {}`. Both endpoints require current custody
+proof, even for the script; analytics failure never affects global app health.
+
+Per process, the relay permits eight concurrent operations and 20 requests per
+second with a burst of 40, no retry or queue. Limits are 16 KiB input, 8 KiB
+receipt, 256 KiB script, two seconds to read a body and five seconds for the
+whole operation. Receipt leases last at most 60 seconds, refresh at least every
+30 seconds and allow at most five seconds of future clock skew. Maintenance
+publishes non-ready state, waits at least six seconds, then verifies actual
+collector exit **and database writer drain** before purging. An old opened
+ready snapshot can finish only within its original five-second lifetime.
+Collection and cutover require the separate deployment acceptance gates.

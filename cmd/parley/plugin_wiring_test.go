@@ -419,12 +419,15 @@ func TestEveryOptionMainCanSetIsActuallySet(t *testing.T) {
 			KudosPerSpace: 1, StoriesPerSession: 1, LinksPerSession: 1,
 			WSMaxPerToken: 1,
 		},
-		SessionIdleTTL:      time.Hour,
-		SessionMaxTTL:       time.Hour,
-		PluginDir:           t.TempDir(),
-		MetricsEnabled:      true,
-		StandupWebhookHosts: []string{"hooks.example.test"},
-		EmbedProviders:      []api.EmbedProvider{{Name: "meet"}},
+		SessionIdleTTL:          time.Hour,
+		SessionMaxTTL:           time.Hour,
+		PluginDir:               t.TempDir(),
+		MetricsEnabled:          true,
+		AnalyticsRelayURL:       "http://scrum-analytics-collector:3000",
+		AnalyticsRelayStateDir:  t.TempDir(),
+		AnalyticsArtifactSHA256: strings.Repeat("a", 64),
+		StandupWebhookHosts:     []string{"hooks.example.test"},
+		EmbedProviders:          []api.EmbedProvider{{Name: "meet"}},
 	}
 	opts := apiOptions(t.Context(), cfg, true, &plugin.Store{}, &plugin.Host{}, &plugin.BundleStore{})
 

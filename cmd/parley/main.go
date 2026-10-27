@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lets-parley/parley/internal/analyticsrelay"
 	"github.com/lets-parley/parley/internal/api"
 	"github.com/lets-parley/parley/internal/auth"
 	"github.com/lets-parley/parley/internal/db"
@@ -32,6 +33,10 @@ import (
 var version = "dev"
 
 type config struct {
+	AnalyticsRelayURL       string
+	AnalyticsRelayStateDir  string
+	AnalyticsArtifactSHA256 string
+
 	InviteOnly bool
 
 	DatabaseURL string
@@ -360,6 +365,7 @@ func loadConfig() (config, error) {
 		return cfg, fmt.Errorf("AUTH_MODE %q is not one of open, oidc", mode)
 	}
 
+	cfg.AnalyticsRelayURL, cfg.AnalyticsRelayStateDir = optionalAnalyticsConfig(os.Getenv("ANALYTICS_RELAY_URL"), os.Getenv("ANALYTICS_RELAY_STATE_DIR"))
 	return cfg, nil
 }
 
@@ -401,6 +407,13 @@ func main() {
 	}
 	log := slog.New(slog.NewJSONHandler(logSink, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	slog.SetDefault(log)
+
+	if cfg.AnalyticsRelayURL != "" {
+		cfg.AnalyticsArtifactSHA256, err = runningExecutableSHA256()
+		if err != nil {
+			slog.Warn("analytics unavailable: executable identity could not be established")
+		}
+	}
 
 	secureCookies := cfg.BaseURL.Scheme == "https"
 	log.Info("boot settings", bootFields(cfg, secureCookies)...)
@@ -563,18 +576,20 @@ func apiOptions(ctx context.Context, cfg config, secureCookies bool, plugins *pl
 	opts := api.Options{
 		// The signal context, so SIGTERM stops the cross-replica listener
 		// along with everything else rather than leaving it dialing.
-		Context:           ctx,
-		SecureCookies:     secureCookies,
-		AllowedOrigin:     cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host,
-		AuthMode:          cfg.AuthMode,
-		InviteOnly:        cfg.InviteOnly,
-		TrustProxyHeaders: cfg.TrustProxy,
-		Version:           version,
-		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
-		Limits:            cfg.Limits,
-		SessionIdleTTL:    cfg.SessionIdleTTL,
-		SessionMaxTTL:     cfg.SessionMaxTTL,
-		BootstrapAdmin:    cfg.BootstrapAdmin,
+		Context:                 ctx,
+		SecureCookies:           secureCookies,
+		AllowedOrigin:           cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host,
+		AuthMode:                cfg.AuthMode,
+		InviteOnly:              cfg.InviteOnly,
+		TrustProxyHeaders:       cfg.TrustProxy,
+		Version:                 version,
+		AnalyticsRelay:          analyticsOptions(cfg),
+		AnalyticsArtifactSHA256: cfg.AnalyticsArtifactSHA256,
+		TrustedProxyCIDRs:       cfg.TrustedProxyCIDRs,
+		Limits:                  cfg.Limits,
+		SessionIdleTTL:          cfg.SessionIdleTTL,
+		SessionMaxTTL:           cfg.SessionMaxTTL,
+		BootstrapAdmin:          cfg.BootstrapAdmin,
 		// Without this the plugin UI frame route and the room's panel list
 		// both take their empty-directory early return, and the whole plugin
 		// UI feature is dead however well the WASM host is wired.
@@ -854,4 +869,13 @@ func sessionSweeper(pool *pgxpool.Pool, cfg config) *store.Users {
 		IdleTTL: cfg.SessionIdleTTL,
 		MaxTTL:  cfg.SessionMaxTTL,
 	}
+}
+
+// analyticsOptions is intentionally optional; invalid custody/configuration must
+// never make an app database, authentication or meeting startup fail.
+func analyticsOptions(cfg config) *analyticsrelay.Config {
+	if cfg.AnalyticsRelayURL == "" {
+		return nil
+	}
+	return &analyticsrelay.Config{Upstream: cfg.AnalyticsRelayURL, StateDir: cfg.AnalyticsRelayStateDir, Origin: cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host, Version: version}
 }

@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="scrum-pro-analytics-v1" source={["web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-analytics-v1" source={["internal/analyticsrelay/relay.go", "internal/analyticsrelay/admission.go", "internal/analyticsrelay/policy.go", "cmd/parley/analytics_identity.go", "web/src/lib/analytics-policy.json", "web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -201,3 +201,20 @@ backup exclusion and restore reconciliation require separate operator evidence
 before expanded collection is enabled. No anonymity or complete deletion
 promise follows merely from the client projection. See the repository's
 `docs/analytics/measurement-contract.md` for exact definitions and limitations.
+
+### Private relay admission
+
+The optional Go relay accepts only fixed page categories and the reviewed
+schema-1 event catalog; its canonical policy is shared with browser projection.
+Native collector APIs are private. No app cookie, account, address, referrer,
+Authorization or native analytics cache is forwarded. Analytics cannot provide
+reliable per-person identity or individual session flows through this relay.
+
+Both transport endpoints require short-lived operator proof bound to the
+running executable's SHA256 and installed collector/tracker/policy. Invalid,
+stale or non-ready proof stops collection without interrupting the application.
+Operator maintenance atomically blocks new snapshots, waits six seconds for
+older operations, then proves collector exit and database writer drain before
+purging. A blocked gateway alone does not prove deletion or backup custody.
+Raw analytics retention remains the separately accepted 90 days; deployment,
+expiry and historical-copy acceptance must pass before collection is enabled.

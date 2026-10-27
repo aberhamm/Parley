@@ -1,7 +1,10 @@
 ---
 id: 007
 title: Bound the exact-site analytics relay and maintenance admission
-status: in-progress
+status: done
+completed: 2026-10-27
+reviewed: false
+qa: automated
 blocked-by: [001, 002]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
@@ -96,3 +99,51 @@ Plan007 depends on committed001/002, not dirty source. Merge the final validated
 Exact detached task worktree `/Users/matthew/dev/parley/.worktrees/analytics-relay-20261027`, base38e2189f734034bc24b10c7a019d3fdecdb8f270. Intended integration fork main; parent `/root` provider01a17c9d-1354-7523-8ac9-7b19f2dbb735 owns integration/cleanup after independently validated integration/deployment and worker exit. Retain the checkout: the original plan and real changes-requested verdict are committed; the F1/F2 author corrections await independent actual-diff recheck and formal approval. No named branch or shared checkout switch. Evidence outside checkout at `/Users/matthew/.local/share/scrum-analytics-20261027/relay-interface.md`.
 
 Specification amendments change only this source plan and private interface evidence. The original baseline and genuine changes-requested verdict are locally committed; no approval was written. No code, tests/builds, runtime, database, credential, push, merge, deployment or board record was changed. Parley remains private/unconfigured for Paperclip. This plan requires independent engineering/security review; authoring is not readiness or execution authority.
+
+## Implementation Notes
+
+Implemented the bounded exact-site, default-off Go relay, canonical browser/Go policy, real executable fingerprint and fresh admission consumer. Independent Codex reviewer /root/analytics_validator passed named code review with zero remaining findings, native health PASS9.8/FAILURES:none with a real isolated TEST_DATABASE_URL (no skip; -p 1), 47 relay plus7 browser mutations,77 browser tests, actual Helm renders and33 Linux/arm64 delivered-artifact assertions. Original source changes-requested, health failures and first fixture failure remain preserved.
+
+Evidence: `/Users/matthew/.local/share/scrum-analytics-20261027/plan007/independent/INDEPENDENT-VALIDATION.md` and `independent-code-review.json`. Scope is local acceptance; production amd64, real Umami/topology/custody/stop-and-drain, integrated regression, deployment and cutover remain downstream. Named collection stays default off; Caddy unchanged. Prior specification-stage notes above are historical.
+
+**Files changed:**
+
+- `.env.example` (modified)
+- `Dockerfile` (modified)
+- `cmd/parley/main.go` (modified)
+- `cmd/parley/plugin_wiring_test.go` (modified)
+- `deploy/charts/parley/templates/deployment.yaml` (modified)
+- `deploy/charts/parley/values.yaml` (modified)
+- `deploy/scrum-pro-htz4/Dockerfile` (modified)
+- `deploy/scrum-pro-htz4/README.md` (modified)
+- `docs/security/control-register.csv` (modified)
+- `internal/api/embed_routes_test.go` (modified)
+- `internal/api/link_routes_test.go` (modified)
+- `internal/api/org_routes_test.go` (modified)
+- `internal/api/router.go` (modified)
+- `scripts/guard-mutation.sh` (modified)
+- `site/src/content/docs/reference/configuration.mdx` (modified)
+- `site/src/content/docs/security/data-and-privacy.mdx` (modified)
+- `web/package.json` (modified)
+- `web/src/lib/analytics.test.ts` (modified)
+- `web/src/lib/analytics.ts` (modified)
+- `web/src/lib/analyticsContract.ts` (modified)
+- `cmd/parley/analytics_identity.go` (created)
+- `cmd/parley/analytics_wiring_test.go` (created)
+- `docs/analytics/relay.md` (created)
+- `internal/analyticsrelay/admission.go` (created)
+- `internal/analyticsrelay/policy.generated.json` (created)
+- `internal/analyticsrelay/policy.go` (created)
+- `internal/analyticsrelay/relay.go` (created)
+- `internal/analyticsrelay/relay_test.go` (created)
+- `internal/analyticsrelay/testdata/umami-3.0.3.js` (created)
+- `internal/api/analytics_proxy.go` (created)
+- `internal/api/analytics_proxy_test.go` (created)
+- `web/scripts/sync-analytics-policy.mjs` (created)
+- `web/src/lib/analytics-policy.json` (created)
+- `web/src/lib/analyticsPolicy.test.ts` (created)
+- `web/src/lib/analyticsRelayProtocol.test.ts` (created)
+
+**Commit:** `c71aee7` — `feat(analytics): bound exact-site relay and maintenance admission`
+
+Worktree retained at `/Users/matthew/dev/parley/.worktrees/analytics-relay-20261027`; parent provider01a17c9d-1354-7523-8ac9-7b19f2dbb735 owns fork-main integration and cleanup after verified deployment and worker exit. Private unique evidence lives outside the checkout; no board binding or write.

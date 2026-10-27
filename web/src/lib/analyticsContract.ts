@@ -1,5 +1,6 @@
 /** Pure contract only: importing this module never loads or sends analytics. */
-export const ANALYTICS_SCHEMA = 1 as const;
+import policy from "./analytics-policy.json";
+export const ANALYTICS_SCHEMA = policy.schema as 1;
 
 export type AnalyticsKind = "poker" | "standup" | "other";
 type SimpleEventName =
@@ -47,39 +48,18 @@ function hasOnlyProperties(data: Record<string, unknown>, allowed: readonly stri
     && Object.keys(data).every((key) => key === "schema" || allowed.includes(key));
 }
 
-function isAnalyticsKind(value: unknown): value is AnalyticsKind {
-  return value === "poker" || value === "standup" || value === "other";
-}
-
-/** Reject unapproved inputs, then build a new payload from fixed primitives. */
+/** Reject unapproved inputs, then build a new payload from canonical finite data. */
 export function projectAnalyticsEvent(name: unknown, data?: unknown): ApprovedAnalyticsEvent | null {
   const values = readAnalyticsData(data);
-  if (!values) return null;
-  switch (name) {
-    case "workspace_created":
-    case "workspace_joined":
-    case "invitation_accepted":
-    case "guest_link_redeemed":
-    case "poker_vote_saved":
-    case "poker_reveal_requested":
-    case "standup_participated":
-      if (!hasOnlyProperties(values, [])) return null;
-      return { name, data: { schema: ANALYTICS_SCHEMA } };
-    case "session_created":
-    case "room_opened":
-    case "session_closed":
-      if (!hasOnlyProperties(values, ["kind"]) || !isAnalyticsKind(values.kind)) return null;
-      return { name, data: { schema: ANALYTICS_SCHEMA, kind: values.kind } };
-    case "creation_failed": {
-      if (!hasOnlyProperties(values, ["flow", "category"])) return null;
-      const { flow, category } = values;
-      if (flow !== "workspace_create" && flow !== "session_create") return null;
-      if (category !== "rejected" && category !== "outcome_unknown") return null;
-      return { name, data: { schema: ANALYTICS_SCHEMA, flow, category } };
-    }
-    default:
-      return null;
+  if (!values || typeof name !== "string" || !Object.hasOwn(policy.events, name)) return null;
+  const fields = policy.events[name as keyof typeof policy.events] as Record<string, string[]>;
+  if (!hasOnlyProperties(values, Object.keys(fields))) return null;
+  const projected: Record<string, unknown> = { schema: ANALYTICS_SCHEMA };
+  for (const [key, allowed] of Object.entries(fields)) {
+    if (typeof values[key] !== "string" || !allowed.includes(values[key])) return null;
+    projected[key] = values[key];
   }
+  return { name, data: projected } as ApprovedAnalyticsEvent;
 }
 
 const excludedPrefixes = new Set([
@@ -92,7 +72,7 @@ function decodeSegment(segment: string): string {
 }
 
 /** Match router templates; no part of an address is ever returned as data. */
-export function analyticsPageCategory(pathname: string): AnalyticsPageCategory | null {
+function classifyAnalyticsPage(pathname: string): AnalyticsPageCategory | null {
   if (typeof pathname !== "string" || !pathname.startsWith("/")) return "/other";
   const path = pathname.split(/[?#]/, 1)[0];
   const parts = path.slice(1).split("/").map(decodeSegment);
@@ -123,4 +103,9 @@ export function analyticsPageCategory(pathname: string): AnalyticsPageCategory |
     if (parts.length === 3 && parts[2]?.toLowerCase() === "present") return "/present";
   }
   return "/other";
+}
+
+export function analyticsPageCategory(pathname: string): AnalyticsPageCategory | null {
+  const category = classifyAnalyticsPage(pathname);
+  return category !== null && policy.pages.includes(category) ? category : null;
 }

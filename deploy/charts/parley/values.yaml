@@ -334,6 +334,16 @@ logLevel: info
 metrics:
   enabled: false
 
+# ANALYTICS_RELAY_URL / ANALYTICS_RELAY_STATE_DIR. Optional and off by default.
+# Only the exact private collector URL below is accepted. Enable only after
+# installed-image/binary, network, retention and custody acceptance. Mount the
+# WHOLE operator-owned state directory read-only using extraVolumes and
+# extraVolumeMounts below (no subPath); never publish native collector ports.
+analyticsRelay:
+  url: ""
+  stateDir: ""
+
+
 # EMBED_PROVIDERS and MEET_CLOUD_PROJECT_NUMBER turn on Parley inside meeting
 # clients (Google Meet). Off by default; set both through extraEnv below, and
 # only with an https BASE_URL. See security/authentication.mdx.

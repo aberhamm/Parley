@@ -529,3 +529,20 @@ The accepted90-day raw analytics policy remains an operator obligation distinct
 from app-content erasure. No collector expiry/backup/restore guarantee is
 established by these client tests. Keep expanded events off until the separately
 reviewed collector custody changes and deployed ingestion/negative tests pass.
+
+### Private Go relay activation gate
+
+Plan007 adds a default-off relay in the app; this source change does **not**
+activate it or change Caddy. At the separately validated cutover, remove only
+the dedicated Caddy `/a` direct-upstream handlers so its existing app fallback
+reaches `/a/script.js` and `/a/api/send`. Never expose native collector/DB ports.
+
+Enable `ANALYTICS_RELAY_URL=http://scrum-analytics-collector:3000` together with
+`ANALYTICS_RELAY_STATE_DIR=/run/parley-analytics` only after Homelab228–231 and
+app005/006 acceptance. Mount the whole operator-owned directory read-only (no
+single-file bind/subPath). The runtime schema and maintenance contract are in
+`docs/analytics/relay.md`. The operator must independently hash `/parley` from
+the installed immutable image and verify the running container uses it without
+an executable override. That SHA256 becomes `app_build`; Version is display
+metadata. No ready receipt is manufactured by the app, and an unavailable
+fingerprint disables only analytics. No raw analytics backup is authorized here.
