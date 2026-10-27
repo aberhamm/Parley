@@ -1,15 +1,16 @@
 ---
 id: 001
 title: Define the analytics measurement and privacy contract
-status: blocked
+status: pending
 blocked-by: []
 goal: privacy-preserving-product-analytics
 allows-migrations: false
-needs-review: eng
+needs-review: none
 review-required: ceo,eng
 created: 2026-10-27
 reviews:
   - type=ceo verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
 ---
 
 ## Plain-English Summary
