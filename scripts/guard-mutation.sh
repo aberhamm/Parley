@@ -89,7 +89,7 @@ run_tests() {
         # between "Tests" and the count -- so the check silently stopped
         # matching in CI and every web guard reported as unscored.
         (cd web && NO_COLOR=1 NODE_OPTIONS=$WEB_NODE_OPTIONS \
-            npx vitest run "${spec%%::*}" -t "${spec#*::}") >"$LOG" 2>&1
+            npx vitest run "${spec%%::*}" -t "${spec#*::}" --maxWorkers=2) >"$LOG" 2>&1
         return $?
     fi
     # -timeout keeps a mutation that removes a timeout from hanging the leg
@@ -251,6 +251,35 @@ analytics_mutations() {
     mutate "analytics fixed route projection" \
         "src/lib/analytics.test.ts::projects all page fields into the fixed route category" \
         lib/analytics.ts 'hostname: location.hostname, url, title:' 'hostname: location.hostname, url: location.pathname, title:'
+    # Ceremony observations are deliberately local and best effort. These
+    # mutations exercise eligibility and mounted-room scope, not unique people.
+    mutate "analytics room once per view" \
+        "src/pages/SessionPage.test.tsx::observes authorized room data once across StrictMode" \
+        pages/SessionPage.tsx 'observedRoom.current === id || left' 'false || left'
+    mutate "analytics room resolved live identity" \
+        "src/pages/SessionPage.test.tsx::does not observe forbidden data or identity recovery until authorized" \
+        pages/SessionPage.tsx 'needsName || !liveIdentity' 'false'
+    mutate "analytics room loading refusal" \
+        "src/pages/SessionPage.test.tsx::analytics refuses a loading room observation" \
+        pages/SessionPage.tsx 'session.isLoading || !env' '!env'
+    mutate "analytics room readable member org" \
+        "src/pages/SessionPage.test.tsx::analytics refuses a missing-org room observation" \
+        pages/SessionPage.tsx '(!hasGuestIdentity && !env.orgSlug)' 'false'
+    mutate "analytics room terminal access refusal" \
+        "src/pages/SessionPage.test.tsx::analytics refuses a (removed|kicked) room observation" \
+        pages/SessionPage.tsx 'session.status === "removed" || session.status === "kicked"' 'false'
+    mutate "analytics built-in available rooms only" \
+        "src/pages/SessionPage.test.tsx::analytics refuses a (unavailable|plugin) room observation" \
+        pages/SessionPage.tsx 'env.kindUnavailable || (env.kind !== "poker" && env.kind !== "standup")' 'false'
+    mutate "analytics current room observation reset" \
+        "src/pages/SessionPage.test.tsx::analytics resets observations and first-save state on a same-component room-id transition" \
+        pages/SessionPage.tsx 'if (observedRoom.current !== id) observedRoom.current = null;' ''
+    mutate "analytics current room draft and participation scope" \
+        "src/pages/SessionPage.test.tsx::analytics resets observations and first-save state on a same-component room-id transition" \
+        pages/SessionPage.tsx 'key={env.id}' 'key="one-room"'
+    mutate "analytics standup first accepted save only" \
+        "src/pages/StandupRoom.test.tsx::ignores seed data and failed autosaves; counts the first accepted local save once per mount" \
+        pages/StandupRoom.tsx 'if (!participated.current) {' 'if (true) {'
 }
 analytics_mutations
 if [ "${1:-}" = "--analytics" ]; then

@@ -1,7 +1,10 @@
 ---
 id: 004
 title: Measure browser-observed ceremony participation
-status: pending
+status: done
+completed: 2026-10-27
+reviewed: false
+qa: automated,browser
 blocked-by: [001, 002]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
@@ -10,6 +13,7 @@ review-required: eng
 created: 2026-10-27
 reviews:
   - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
+  - type=code verdict=pass date=2026-10-27 by=analytics-validator-standard-recheck
 ---
 
 ## Plain-English Summary
@@ -24,14 +28,14 @@ Matthew needs browser-observed participation signals, with clear distinctions be
 
 **Acceptance criteria**
 
-- [ ] `room_opened` emits after the first authorized readable room plus resolved identity in the current document/room mount, normalized by `kind=poker|standup|other`. Loading/error/forbidden pages, guest identity recovery prompts, refreshes/reconnects, subsequent frames, and rerenders do not create additional observations within that mount. The lifecycle originates in `web/src/pages/SessionPage.tsx`.
-- [ ] `poker_vote_saved` emits only after the initiating browser's vote write succeeds, after the optimistic UI's failure path is excluded. No card value, round/story/session identity, participant name, count, or estimate is sent. Successful vote changes count as additional actions, not additional people.
-- [ ] `poker_reveal_requested` emits for successful explicit manual-reveal requests only. Auto-reveal, replayed frames, another facilitator's action, and merely rendering a revealed room do not emit. Acknowledged idempotent repeats are not advertised as unique revealed rounds.
-- [ ] `standup_participated` emits for the first successful locally initiated standup save per current document/room mount, not every 800ms autosave. Failed saves and seed/server entries do not count. Later edits and flushes in the same mount do not duplicate it. Empty-but-successful saves follow this definition; do not inspect/send text or infer completion from content.
-- [ ] `session_closed` emits only after the initiating browser receives success for the close action, with normalized kind; it is not session/workspace deletion. Standup flush failure prevents close and its analytics success. Broadcasts, scheduled expiry, other browsers, and loaded ended rooms do not emit.
-- [ ] Memory-only guards are bounded to one mounted room; no persistent identifier, unbounded cross-room set, arbitrary payload key, new server ID, or analytics identifier is stored/sent. Reload/remount/multiple tabs may duplicate room/standup observations and must be disclosed.
-- [ ] No event is emitted by `useSession`/socket message handling, generic API/action helpers, React render, server hub, or plugin frame. Analytics failures/opt-out cannot affect autosave sequencing, vote secrecy, websocket behavior, or close guards.
-- [ ] Source/tests and measurement docs explicitly say that automatic/scheduled actions, blocked tracking, other devices, reloads and retries make this unsuitable for exact people, rounds, meetings, or completion rates.
+- [x] `room_opened` emits after the first authorized readable room plus resolved identity in the current document/room mount, normalized by `kind=poker|standup|other`. Loading/error/forbidden pages, guest identity recovery prompts, refreshes/reconnects, subsequent frames, and rerenders do not create additional observations within that mount. The lifecycle originates in `web/src/pages/SessionPage.tsx`.
+- [x] `poker_vote_saved` emits only after the initiating browser's vote write succeeds, after the optimistic UI's failure path is excluded. No card value, round/story/session identity, participant name, count, or estimate is sent. Successful vote changes count as additional actions, not additional people.
+- [x] `poker_reveal_requested` emits for successful explicit manual-reveal requests only. Auto-reveal, replayed frames, another facilitator's action, and merely rendering a revealed room do not emit. Acknowledged idempotent repeats are not advertised as unique revealed rounds.
+- [x] `standup_participated` emits for the first successful locally initiated standup save per current document/room mount, not every 800ms autosave. Failed saves and seed/server entries do not count. Later edits and flushes in the same mount do not duplicate it. Empty-but-successful saves follow this definition; do not inspect/send text or infer completion from content.
+- [x] `session_closed` emits only after the initiating browser receives success for the close action, with normalized kind; it is not session/workspace deletion. Standup flush failure prevents close and its analytics success. Broadcasts, scheduled expiry, other browsers, and loaded ended rooms do not emit.
+- [x] Memory-only guards are bounded to one mounted room; no persistent identifier, unbounded cross-room set, arbitrary payload key, new server ID, or analytics identifier is stored/sent. Reload/remount/multiple tabs may duplicate room/standup observations and must be disclosed.
+- [x] No event is emitted by `useSession`/socket message handling, generic API/action helpers, React render, server hub, or plugin frame. Analytics failures/opt-out cannot affect autosave sequencing, vote secrecy, websocket behavior, or close guards.
+- [x] Source/tests and measurement docs explicitly say that automatic/scheduled actions, blocked tracking, other devices, reloads and retries make this unsuitable for exact people, rounds, meetings, or completion rates.
 
 ## Design
 
@@ -76,3 +80,28 @@ assumed:
 - from: 001; kind: file; name: web/src/lib/analyticsContract.ts; file: web/src/lib/analyticsContract.ts
 - from: 002; kind: symbol; name: trackAnalyticsEvent; file: web/src/lib/analytics.ts
 -->
+
+
+## Implementation Notes
+
+Built-in readable room views emit one mount-local observation after identity resolution. Poker votes/manual reveals and explicit session closes emit only after the initiating callback receives success; standup saves emit once per room mount and close waits for the final successful flush. Literal payloads contain only approved schema/kind primitives, while named collection stays default-off. Added failure/retry, opt-out/throwing-tracker, current-room transition and eligibility regressions, plus nine ceremony mutations in the existing guarded harness.
+
+**Verification:** 512 scoped component/adapter tests and all 14 analytics mutations passed. Different reviewer analytics_validator independently ran the 512 tests and 14 mutations and verified restoration across 506 source/harness files; its actual named mstack-code-review recheck reported no remaining findings. Prior independent frontend/site builds and synthetic two-browser initiator/observer and flush checks remain applicable because runtime source did not change in the correction. Native health PASS 8.3 (typecheck 10, lint 7, tests 10, shell 4); existing shell findings and the initial lint-scoring failure are retained, not an all-green release claim. TEST_DATABASE_URL was unset and unused; no Go/database checks or opt-out.
+
+**Review history:** The genuine initial code failure is preserved as a native commit before the actual independent correction pass; private evidence is under scrum-analytics-20261027/plan004. This plan is locally complete, with human review, parent integration/deployment and eventual task-worktree cleanup still separate. Shared mutation-harness changes must be preserved when parent integrates other streams.
+
+**Files changed:**
+
+- `docs/plans/004-measure-ceremony-participation-signals.md` (modified)
+- `docs/analytics/measurement-contract.md` (modified)
+- `docs/security/control-register.csv` (modified)
+- `scripts/guard-mutation.sh` (modified)
+- `site/src/content/docs/security/data-and-privacy.mdx` (modified)
+- `web/src/pages/SessionPage.tsx` (modified)
+- `web/src/pages/SessionPage.test.tsx` (modified)
+- `web/src/pages/PokerRoom.tsx` (modified)
+- `web/src/pages/PokerRoom.test.tsx` (modified)
+- `web/src/pages/StandupRoom.tsx` (modified)
+- `web/src/pages/StandupRoom.test.tsx` (modified)
+
+**Commit:** `253321f` — feat(web): observe acknowledged ceremony participation (pre-backfill commit; authoritative final hash is in the private native completion receipt).

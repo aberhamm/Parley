@@ -79,10 +79,10 @@ passes an arbitrary caller object through.
 | `guest_link_redeemed` | None | `LinkPage.submit` receives successful signed-link redemption. |
 | `session_created` | Required `kind`: `poker`, `standup`, `other` | Explicit create-session callback receives success; no scheduled creations. |
 | `creation_failed` | Required `flow`: `workspace_create`, `session_create`; required `category`: `rejected`, `outcome_unknown` | Explicit HTTP non-success versus transport/response ambiguity. Neither is an authoritative statement about whether a server transaction occurred. |
-| `room_opened` | Required `kind`: `poker`, `standup`, `other` | First authorized readable room and resolved identity during one document/room mount. |
+| `room_opened` | Required `kind`: `poker`, `standup`, `other` | First authorized readable built-in poker/standup room and resolved identity during one document/room mount in `SessionPage`. Plugin and unknown rooms are not observed. |
 | `poker_vote_saved` | None | Initiating vote callback receives success; not optimistic selection or server broadcast. |
 | `poker_reveal_requested` | None | Initiating manual-reveal callback receives success; not automatic reveal or an observed revealed frame. |
-| `standup_participated` | None | First successful local standup save per document/room mount; not every debounced save. |
+| `standup_participated` | None | First acknowledged local standup save per document/room mount in `useOwnEntryDraft`; not seeded entries or every debounced save. An empty-but-successful save counts without inspecting content. |
 | `session_closed` | Required `kind`: `poker`, `standup`, `other` | Initiating close callback receives success; standup flush must succeed first. |
 
 No other properties are allowed. Unknown names, keys, enum values, nested data,
@@ -94,7 +94,7 @@ votes/estimates, slugs, tokens, error messages, URLs, count/timestamp fields,
 release hashes, or test IDs. Rejection is deliberate; silently dropping an
 unknown field would hide a caller that tried to send unreviewed data.
 
-Later instrumentation must use explicit initiating callbacks after awaited
+Ceremony instrumentation uses explicit initiating callbacks after awaited
 writes. No generic `api()`/`action()` interceptor, React render, shared query,
 WebSocket message, hub callback, or plugin frame may emit a success event.
 Navigation/cache errors after an acknowledged write do not turn it into a
@@ -252,3 +252,23 @@ The page tests use a synthetic tracker that passes its complete candidate
 payload through the real before-send projection and checks emitted records,
 not a mocked event function. This establishes local app projection behavior;
 it does not establish accepted collector records or collector-derived metadata.
+
+## Ceremony observation limits
+
+`PokerRoom` counts acknowledged local vote changes as additional actions and
+explicit manual reveal requests (including successful user retries), never
+unique people or revealed rounds. `StandupRoom` awaits its serialized save and
+final flush before close: a failed flush or denied close has no close success.
+`SessionPage` observes a readable built-in room once per mounted room view after
+identity resolution, including authorized guest views, but never name recovery
+prompts or plugin frames. A new room mounts fresh local draft/observation state.
+
+Only that initiating browser emits action observations. Receiving the same
+WebSocket update, reconnecting, rendering ended/revealed state, and automatic
+or scheduled actions emit no action success. Reloads, real remounts and multiple
+tabs can duplicate room-open and first-save observations; blocked tracking,
+other devices, network loss and acknowledged retries also distort counts.
+These signals cannot establish exact people, rounds, meetings or completion
+rates. Memory-only guards expire with the mounted room; no queue or identifier
+is persisted or transmitted. The adapter can drop an observation without
+changing vote rollback, autosave sequencing or close guards.

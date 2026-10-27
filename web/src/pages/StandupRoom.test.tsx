@@ -1,3 +1,4 @@
+import * as analytics from "../lib/analytics";
 import { StrictMode, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -2647,4 +2648,106 @@ describe("StandupRoom who an async standup waits on", () => {
     expect(screen.getByRole("region", { name: "Answered" }).textContent).toContain("Priya Raman");
     await expectNoViolations(container);
   });
+});
+
+
+describe("StandupRoom analytics", () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  it("ignores seed data and failed autosaves; counts the first accepted local save once per mount", async () => {
+    vi.useFakeTimers();
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    let failed = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => String(input).includes("/plugins/panels")
+      ? new Response("[]") : failed ? new Response('{"error":"denied"}', { status: 403 }) : new Response(null, { status: 204 }));
+    const env = envelope({ phase: "gathering", state: standupState(null) });
+    const view = renderApp(<StrictMode><StandupRoom env={env} me={me} /></StrictMode>);
+    expect(track).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Private text" } });
+    await advance(800);
+    expect(screen.getByRole("alert").textContent).toMatch(/could not save/i);
+    expect(track).not.toHaveBeenCalled();
+    failed = false;
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "" } });
+    await advance(800);
+    expect(track.mock.calls).toEqual([["standup_participated"]]);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Another edit" } });
+    await advance(800);
+    view.rerender(<StrictMode><StandupRoom env={{ ...env, version: 2 }} me={me} /></StrictMode>);
+    expect(track).toHaveBeenCalledTimes(1);
+    view.unmount();
+    renderApp(<StandupRoom env={env} me={me} />);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "New document observation" } });
+    await advance(800);
+    expect(track.mock.calls).toEqual([["standup_participated"], ["standup_participated"]]);
+  });
+
+  it("flushes before close, rejects failed flush and denied close, then counts accepted save and close", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    let failSave = true;
+    let failClose = true;
+    const calls: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).includes("/plugins/panels")) return new Response("[]");
+      const close = init?.method === "DELETE";
+      calls.push(close ? "close" : "save");
+      return (close ? failClose : failSave) ? new Response('{"error":"denied"}', { status: 403 }) : new Response(null, { status: 204 });
+    });
+    renderApp(<StandupRoom env={envelope({ facilitatorId: me.id, phase: "gathering", state: standupState(null) })} me={me} />);
+    async function close() {
+      await userEvent.click(screen.getByRole("button", { name: "End session" }));
+      await userEvent.click(screen.getByRole("button", { name: "End standup" }));
+    }
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Last keystroke" } });
+    await close();
+    await screen.findByText(/last changes could not be saved/);
+    expect(calls).toEqual(["save"]);
+    expect(track).not.toHaveBeenCalled();
+    failSave = false;
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Retry save" } });
+    await close();
+    await screen.findByText("denied");
+    expect(calls).toEqual(["save", "save", "close"]);
+    expect(track.mock.calls).toEqual([["standup_participated"]]);
+    failClose = false;
+    await close();
+    await waitFor(() => expect(track.mock.calls).toEqual([["standup_participated"], ["session_closed", { kind: "standup" }]]));
+    expect(calls).toEqual(["save", "save", "close", "close"]);
+  });
+});
+
+
+it("analytics opt-out and a throwing tracker never change acknowledged standup writes or close", async () => {
+  const meta = document.createElement("meta");
+  meta.name = "app-analytics";
+  meta.dataset.websiteId = "synthetic-test";
+  meta.dataset.domains = location.hostname;
+  meta.dataset.namedEvents = "true";
+  document.head.appendChild(meta);
+  const tracker = vi.fn(() => { throw new Error("blocked collector"); });
+  window.umami = { track: tracker };
+  analytics.setAnalyticsDisabled(false);
+  analytics.initializeAnalytics();
+  const script = document.getElementById("umami-pageviews")!;
+  script.dispatchEvent(new Event("load"));
+  tracker.mockClear();
+  vi.spyOn(globalThis, "fetch").mockImplementation(answering(new Response(null, { status: 204 })));
+  try {
+    renderApp(<StandupRoom env={envelope({ facilitatorId: me.id, phase: "gathering", state: standupState(null) })} me={me} />);
+    analytics.setAnalyticsDisabled(true);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Private" } });
+    await screen.findByText("Saved");
+    expect(tracker).not.toHaveBeenCalled();
+    analytics.setAnalyticsDisabled(false);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Final" } });
+    await userEvent.click(screen.getByRole("button", { name: "End session" }));
+    await userEvent.click(screen.getByRole("button", { name: "End standup" }));
+    expect(tracker).toHaveBeenCalledWith("session_closed", { schema: 1, kind: "standup" });
+    expect(await screen.findByText("Session closed — members can still open the results")).toBeTruthy();
+  } finally {
+    analytics.setAnalyticsDisabled(false);
+    delete window.umami;
+    script.remove();
+    meta.remove();
+    vi.restoreAllMocks();
+  }
 });
