@@ -1,13 +1,15 @@
 ---
 id: 006
 title: Validate actionable usage reports and guarded rollout
-status: blocked
-blocked-by: [003, 004, 005]
+status: pending
+blocked-by: [002, 003, 004, 005]
 goal: privacy-preserving-product-analytics
 allows-migrations: false
-needs-review: eng
+needs-review: none
 review-required: eng
 created: 2026-10-27
+reviews:
+  - type=eng verdict=approved date=2026-10-27 by=codex-formal-plan-review
 ---
 
 ## Plain-English Summary
@@ -26,11 +28,11 @@ Matthew should be able to see which app areas and ceremonies are used, which suc
 - [ ] None of these raw action-count views is labeled unique users/workspaces/meetings, exact completion/participation rate, or cohort conversion. No daily/weekly “retention of users” is inferred from anonymous rotating identifiers. No report combines host actions and participant actions into one person's required sequence.
 - [ ] Conditional flow reports are separate same-browser journeys: homepage → workspace_created → session_created (host setup), invitation page → invitation_accepted → room_opened (invited browser, only when it actually opens a room), room_opened → poker_vote_saved, and room_opened → standup_participated. Paths that legitimately bypass a step are disclosed. The installed collector's supported filtering must distinguish kind where needed; otherwise omit that funnel, not guess.
 - [ ] Flow reports require plan 005's `anonymous-flows` tier plus passing synthetic identity/ordering/window checks. Their window is explicitly 60 minutes between consecutive steps, verified against the installed version, not assumed to be 60 minutes for the whole journey. Session merging, rotation, duplicate contexts, out-of-order/repeated steps and entry that skips the homepage are tested/documented. If unsupported, ship raw-count reports and clearly mark flow conversion unavailable.
-- [ ] A full isolated browser → existing app adapter → dedicated-gateway-equivalent route → exact approved collector → accepted raw event/report readback passes with synthetic data. A 200 response or script download is insufficient; emitted and accepted records/counts must agree with the known script, including the expected one-document dedup cases and deliberately dropped events.
+- [ ] A full isolated browser → the adapter from `web/src/lib/analytics.ts` → the gateway route defined in `deploy/scrum-pro-htz4/Caddyfile` → exact approved collector → accepted raw event/report readback passes with synthetic data. A 200 response or script download is insufficient; emitted and accepted records/counts must agree with the known script, including the expected one-document dedup cases and deliberately dropped events.
 - [ ] Full outgoing bodies contain no fixture name, token, org/space/session/story identifier, query/hash, free text, raw error, estimate or vote value. DNT, opt-out before/after load, blocked tracker, offline send, repeated mounts, replayed WebSocket frames, and unapproved host/default-off release produce the expected absent events without blocking app behavior.
 - [ ] Synthetic tests use an isolated site/collector, never production telemetry. Avoid a high-cardinality “test ID” dimension; isolate by test website scope and bounded test time. No public share links or copied credentials are created.
 - [ ] A sanitized acceptance report states exact source commit/build, tracker hash/version, collector version, website scope, configured report tier, executed test commands, acceptance readback, limitations, pending authority and rollback procedure. Local validation is never reported as live deployment verification.
-- [ ] Before any real-traffic enablement, explicit current rollout authority, approved policy and ready custody receipt are required, plus independent final source/privacy review. Until then the implementation and checklist are local/reviewable and named events stay disabled. Missing access/approval leaves rollout blocked; do not mark production acceptance done or bypass gates.
+- [ ] Matthew authorized implementation/testing/merge/app deployment of this six-plan scope on2026-10-27 and accepted90-day raw retention; do not request the same approval again. Before real-traffic enablement, require a matching ready custody receipt from `scripts/check-analytics-readiness.py`, approved compatible artifact and independent final source/privacy review. Until those evidence gates pass, named events stay disabled. The app authorization does not permit unreviewed shared-collector retention infrastructure or identity widening; missing operational custody leaves rollout blocked.
 - [ ] Rollback disables named events first and restores the reviewed previous app artifact/config; it does not delete historical analytics, reset a site, roll back the collector, or change unrelated services. Any future live smoke uses separately approved synthetic actions and confirms accepted readback under the same source/report identity.
 
 ## Design
@@ -57,15 +59,25 @@ Prefer saved report recipes and supported native Umami views; do not add a Parle
 3. Exercise the version-matched isolated collector through the gateway-equivalent path and read accepted records/reports back; inspect complete payloads and privacy exclusions.
 4. Validate identity and ordered flow behavior; enable only the report tier supported by plan 005 and the synthetic evidence, recording unavailable metrics clearly.
 5. Prepare the exact reviewed artifact/config, default-off or explicitly authorized enablement proposal, rollback steps and evidence receipt; obtain independent review.
-6. Stop at the rollout gate without separate current authority. If later authority is granted, the existing designated operator performs the bounded rollout and readback, records the result, and owns cleanup after integration and process exit.
+6. Stop at the rollout gate while evidence is missing. Once all gates pass, the designated operator uses Matthew's already granted matching app-deployment authority for bounded rollout/readback, records the result and owns cleanup after integration and process exit; obtain additional authority only for genuinely new collector scope.
 
 ## Verification
 
 - [cmd] `cd web && npm test -- src/lib/analyticsContract.test.ts src/lib/analytics.test.ts src/pages/Landing.test.tsx src/pages/SpacePage.test.tsx src/pages/InvitationPage.test.tsx src/pages/LinkPage.test.tsx src/pages/SessionPage.test.tsx src/pages/PokerRoom.test.tsx src/pages/StandupRoom.test.tsx`.
 - [cmd] `cd web && npm run build && npm run lint`.
-- [cmd] `python3 scripts/check-analytics-readiness.py --receipt "$ANALYTICS_READINESS_RECEIPT"` — accept only the source-compatible ready tier; preserve a failing gate as a blocker.
+- [cmd] `python3 scripts/check-analytics-readiness.py --receipt "$ANALYTICS_READINESS_RECEIPT" --contract-schema 1 --tracker-sha256 "$ANALYTICS_TRACKER_SHA256" --collector-version "$ANALYTICS_COLLECTOR_VERSION" --collector-build "$ANALYTICS_COLLECTOR_BUILD" --website-id "$ANALYTICS_WEBSITE_ID"` — accept only the source-compatible ready tier; preserve a failing gate as a blocker.
 - [browse] `/` verify 'synthetic host setup through workspace/session creation yields exactly the expected coarse pages and acknowledged events in the isolated collector readback, with no fixture content or identities'.
 - [browse] `/session/test-session` verify 'two browser contexts, reconnects, repeated frames, successful vote changes and manual/automatic reveals match the event definitions; opting out suppresses future sends while the meeting still works'.
 - [manual] Compare native raw-count and conditional flow results with the synthetic oracle; include a flow with intermediate unrelated actions and a step delayed past the 60-minute window in a controlled test fixture. Reject unsupported/merged-identity conversion claims.
 - [manual] Independent reviewer reads final source, full payload capture, collector readback and custody receipt; no implementation author's “done” or saved script-availability receipt substitutes for this check.
-- [manual] Report `TEST_DATABASE_URL` set/unset and opt-out state for any actual Go checks. No Go build/test or production rollout is required merely to author these plans, and no deployment is authorized by this checklist.
+- [manual] Report `TEST_DATABASE_URL` set/unset and opt-out state for any actual Go checks. No Go build/test or production rollout is required merely to author these plans, and the checklist alone never supplies deployment authority. The existing matching user authorization is recorded above.
+
+<!-- mstack:seam
+produced:
+- kind: file; name: docs/analytics/reports.md; file: docs/analytics/reports.md
+- kind: file; name: docs/verification/analytics-acceptance.md; file: docs/verification/analytics-acceptance.md
+assumed:
+- from: 002; kind: file; name: web/src/lib/analytics.ts; file: web/src/lib/analytics.ts
+- from: 005; kind: file; name: docs/analytics/collector-readiness.md; file: docs/analytics/collector-readiness.md
+- from: 005; kind: file; name: scripts/check-analytics-readiness.py; file: scripts/check-analytics-readiness.py
+-->
