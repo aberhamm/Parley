@@ -15,7 +15,7 @@
   <key>ProcessType</key><string>Background</string>
   <key>Nice</key><integer>10</integer>
   <key>Umask</key><integer>63</integer>
-  <key>StandardOutPath</key><string>/dev/null</string>
-  <key>StandardErrorPath</key><string>/dev/null</string>
+  <key>StandardOutPath</key><string>/Users/matthew/.local/share/scrum-pro-privacy/privacy-alerts.log</string>
+  <key>StandardErrorPath</key><string>/Users/matthew/.local/share/scrum-pro-privacy/privacy-alerts.log</string>
 </dict>
 </plist>

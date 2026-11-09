@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import shlex
+import shutil
 import sys
 import urllib.error
 import urllib.request
@@ -17,11 +18,42 @@ GROUPS = ('backup', 'expiry', 'journal')
 UTC = dt.timezone.utc
 FRESH_SECONDS = 300
 BACKUP_SECONDS = 30 * 60 * 60
+# A check pings /fail only once this many runs in a row have failed. One slow
+# SSH leg (Northport NAS, htz host) or one failed sync pass must not page.
+FAIL_STREAK = 3
+SSH_ATTEMPTS = 2
+LOG_NAME = 'privacy-alerts.log'
+LOG_MAX_BYTES = 1024 * 1024
 
 spec = importlib.util.spec_from_file_location('scrum_studio_for_alerts', Path(__file__).with_name('privacy-studio.py'))
 studio = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(studio)
 privacy = studio.privacy
+
+
+def reason(exc):
+    """Fixed, secret-free description of an exception for the log."""
+    if isinstance(exc, studio.SyncError) and exc.args and isinstance(exc.args[0], str):
+        return exc.args[0][:80]
+    if isinstance(exc, urllib.error.HTTPError):
+        return 'http_' + str(exc.code)
+    return type(exc).__name__
+
+
+def log(message):
+    # stderr is the launchd StandardErrorPath log. Ping URLs never reach it.
+    print(privacy.utc_string(dt.datetime.now(UTC)) + ' ' + message, file=sys.stderr, flush=True)
+
+
+def rotate_log(runtime=RUNTIME):
+    path = runtime / LOG_NAME
+    try:
+        if path.stat().st_size > LOG_MAX_BYTES:
+            shutil.copyfile(path, runtime / (LOG_NAME + '.1'))
+            # launchd opened the log for append, so truncating in place is safe.
+            path.write_bytes(b'')
+    except OSError:
+        pass
 
 HOST_PROBE = r'''
 import runpy,json,hashlib,pathlib,subprocess
@@ -185,18 +217,22 @@ def collect(settings):
     bundle = {}
     for name, target, prefix, code in [('host', 'root@htz-4g-nbg', 'python3', HOST_PROBE),
                                         ('nas', settings['nas_mirror']['target'], '/usr/bin/sudo -n /usr/bin/python3', NAS_PROBE)]:
-        try:
-            raw = studio._ssh_bytes(target, prefix + ' -c ' + shlex.quote(code), limit=256*1024)
-            bundle[name] = privacy.decode_json(raw)
-        except Exception:
-            bundle[name] = None
+        bundle[name] = None
+        for attempt in range(1, SSH_ATTEMPTS + 1):
+            try:
+                raw = studio._ssh_bytes(target, prefix + ' -c ' + shlex.quote(code), limit=256*1024)
+                bundle[name] = privacy.decode_json(raw)
+                break
+            except Exception as exc:
+                log(f'probe {name} attempt {attempt}/{SSH_ATTEMPTS} failed: {reason(exc)}')
     try:
         status = privacy.read_private_json(RUNTIME / 'status.json')
         path = RUNTIME / 'journal/deletions.json'
         data = privacy.read_journal(path)
         bundle['studio'] = dict(status=status, journal=dict(instance_id=data['instance_id'], receipt_count=len(data['deletions']),
                                                             journal_sha256=hashlib.sha256(studio._private_bytes(path)).hexdigest()))
-    except Exception:
+    except Exception as exc:
+        log(f'studio status read failed: {reason(exc)}')
         bundle['studio'] = None
     return bundle
 
@@ -210,17 +246,29 @@ def run_once(config, instance, runtime=RUNTIME, *, collector, sender=send_ping, 
         previous = privacy.read_private_json(path).get('checks', {}) if path.exists() else {}
         try:
             bundle = collector()
-        except Exception:
+        except Exception as exc:
+            log(f'collector failed: {reason(exc)}')
             bundle = {}
         now = now or dt.datetime.now(UTC)
         try:
             findings = assess(bundle, instance, now, previous=previous)
-        except Exception:
+        except Exception as exc:
+            log(f'assess failed: {reason(exc)}')
             findings = {key: ['protection_metadata_invalid'] for key in GROUPS}
         checks = {}
         for key in GROUPS:
             codes = findings[key]
-            entry = dict(status='failed' if codes else 'ok', reasons=codes, delivered=False)
+            streak = 0
+            if codes:
+                old_streak = (previous.get(key) or {}).get('consecutive_failures', 0)
+                if type(old_streak) is not int or old_streak < 0:
+                    old_streak = 0
+                streak = old_streak + 1
+            # Until the streak is reached a failing check is 'pending' and
+            # still sends its green heartbeat (with the codes in the body).
+            alerting = streak >= FAIL_STREAK
+            entry = dict(status='failed' if alerting else ('pending' if codes else 'ok'), reasons=codes,
+                         consecutive_failures=streak, alerting=alerting, delivered=False)
             if key == 'journal':
                 try:
                     flags = mismatch_flags(bundle)
@@ -242,9 +290,10 @@ def run_once(config, instance, runtime=RUNTIME, *, collector, sender=send_ping, 
         studio._atomic_json(path, status)
         for key, entry in checks.items():
             try:
-                sender(config['checks'][key], bool(entry['reasons']), entry['reasons'])
+                sender(config['checks'][key], entry['alerting'], entry['reasons'])
                 entry['delivered'] = True
-            except Exception:
+            except Exception as exc:
+                log(f'ping {key} delivery failed: {reason(exc)}')
                 entry['delivery_error'] = 'healthchecks_delivery_failed'
         if all(c['delivered'] and c['status'] == 'ok' for c in checks.values()):
             status['status'] = 'ok'
@@ -253,19 +302,25 @@ def run_once(config, instance, runtime=RUNTIME, *, collector, sender=send_ping, 
         else:
             status['status'] = 'failed'
         studio._atomic_json(path, status)
+        log('run ' + status['status'] + ' ' + ' '.join(
+            f"{key}={entry['status']}({entry['consecutive_failures']}/{FAIL_STREAK})"
+            + ('' if entry['delivered'] else '!undelivered')
+            + (':' + ','.join(entry['reasons']) if entry['reasons'] else '')
+            for key, entry in checks.items()))
         return status
 
 
 def main():
+    rotate_log()
     try:
         config = validate_config(privacy.read_private_json(RUNTIME / 'alerts.json'))
         settings = studio.validate_config(privacy.read_private_json(RUNTIME / 'config.json'))
         result = run_once(config, settings['instance_id'], collector=lambda: collect(settings))
         return 0 if result['status'] in {'ok', 'pending'} else 1
-    except Exception:
+    except Exception as exc:
         # Failed/missing credentials or a crashed checker send no green ping:
         # independent Healthchecks deadlines then raise missed-run alerts.
-        print('Scrum Pro protection checker failed; inspect private status.', file=sys.stderr)
+        log('Scrum Pro protection checker failed; inspect private status: ' + reason(exc))
         return 1
 
 

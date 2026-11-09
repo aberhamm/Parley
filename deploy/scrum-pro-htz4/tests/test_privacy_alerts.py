@@ -126,11 +126,13 @@ class AlertTests(unittest.TestCase):
             root=Path(tmp).resolve(); root.chmod(0o700)
             conf=config()
             sent=[]
-            out=alerts.run_once(conf,INSTANCE,root,collector=lambda:b,
-                                sender=lambda url,failed,codes:sent.append((failed,codes)),now=NOW)
-            self.assertEqual(len(sent),3)
+            for _ in range(alerts.FAIL_STREAK):
+                out=alerts.run_once(conf,INSTANCE,root,collector=lambda:b,
+                                    sender=lambda url,failed,codes:sent.append((failed,codes)),now=NOW)
+            self.assertEqual(len(sent),3*alerts.FAIL_STREAK)
             self.assertEqual(out['checks']['backup']['status'],'ok')
             self.assertEqual(out['checks']['expiry']['status'],'failed')
+            self.assertTrue(all(isinstance(code,str) for _,codes in sent for code in codes))
             raw=(root/'alerts-status.json').read_text()
             self.assertNotIn('https://',raw); self.assertNotIn(INSTANCE,raw)
             self.assertEqual((root/'alerts-status.json').stat().st_mode & 0o777,0o600)
@@ -195,5 +197,92 @@ class AlertTests(unittest.TestCase):
             self.assertNotIn('pg_dump',code)
         self.assertIn('O_NOFOLLOW',alerts.NAS_PROBE)
         self.assertIn('read(5)',alerts.NAS_PROBE)
+
+    def test_fail_pinged_only_after_three_failed_runs_and_success_resets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp).resolve(); root.chmod(0o700)
+            conf=config(); urls={v:k for k,v in conf['checks'].items()}
+            broken=bundle(); broken['host']=None
+            def run(b):
+                sent={}
+                out=alerts.run_once(conf,INSTANCE,root,collector=lambda:b,
+                                    sender=lambda url,failed,codes:sent.__setitem__(urls[url],failed),now=NOW)
+                return out,sent
+            for n in (1,2):
+                out,sent=run(broken)
+                self.assertEqual(sent,{'backup':False,'expiry':False,'journal':False},n)
+                self.assertEqual(out['checks']['expiry']['status'],'pending')
+                self.assertEqual(out['checks']['expiry']['consecutive_failures'],n)
+                self.assertTrue(out['checks']['expiry']['reasons'])
+                self.assertEqual(out['status'],'pending')
+            out,sent=run(broken)
+            self.assertEqual(sent,{'backup':False,'expiry':True,'journal':True})
+            self.assertEqual(out['checks']['expiry']['status'],'failed'); self.assertEqual(out['status'],'failed')
+            out,sent=run(broken)
+            self.assertEqual(sent['expiry'],True); self.assertEqual(out['checks']['expiry']['consecutive_failures'],4)
+            out,sent=run(bundle())
+            self.assertEqual(sent,{'backup':False,'expiry':False,'journal':False})
+            self.assertEqual(out['status'],'ok'); self.assertEqual(out['checks']['expiry']['consecutive_failures'],0)
+            # After a reset a single failure is again only pending.
+            out,sent=run(broken)
+            self.assertEqual(sent['expiry'],False); self.assertEqual(out['checks']['expiry']['consecutive_failures'],1)
+
+    def test_streaks_are_per_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp).resolve(); root.chmod(0o700)
+            conf=config(); urls={v:k for k,v in conf['checks'].items()}
+            nas=bundle(); nas['nas']=None
+            host=bundle(); host['host']=None
+            for b in (nas,nas,host):
+                sent={}
+                out=alerts.run_once(conf,INSTANCE,root,collector=lambda:b,
+                                    sender=lambda url,failed,codes:sent.__setitem__(urls[url],failed),now=NOW)
+            self.assertEqual(out['checks']['backup']['consecutive_failures'],0)
+            self.assertEqual(sent,{'backup':False,'expiry':True,'journal':True})
+
+    def test_invalid_stored_streak_treated_as_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp).resolve(); root.chmod(0o700)
+            alerts.studio._atomic_json(root/'alerts-status.json',{'version':1,'checks':{'expiry':{'consecutive_failures':'9'}}})
+            b=bundle(); b['host']=None
+            out=alerts.run_once(config(),INSTANCE,root,collector=lambda:b,sender=lambda *a:None,now=NOW)
+            self.assertEqual(out['checks']['expiry']['consecutive_failures'],1)
+
+    def test_ssh_probe_retried_once_then_given_up(self):
+        settings={'nas_mirror':{'target':'nas@example'}}
+        ok=json.dumps({'ok':True}).encode()
+        def flaky_once():
+            seen={}
+            def fake(target,command,limit):
+                seen[target]=seen.get(target,0)+1
+                if seen[target]==1: raise alerts.studio.SyncError('transport_timeout')
+                return ok
+            return fake,seen
+        fake,seen=flaky_once()
+        with mock.patch.object(alerts.studio,'_ssh_bytes',side_effect=fake), \
+             mock.patch.object(alerts.privacy,'read_private_json',side_effect=OSError):
+            out=alerts.collect(settings)
+        self.assertEqual(out['host'],{'ok':True}); self.assertEqual(out['nas'],{'ok':True})
+        self.assertEqual(seen,{'root@htz-4g-nbg':2,'nas@example':2})
+        calls=[]
+        def dead(target,command,limit):
+            calls.append(target); raise alerts.studio.SyncError('transport_failed')
+        with mock.patch.object(alerts.studio,'_ssh_bytes',side_effect=dead), \
+             mock.patch.object(alerts.privacy,'read_private_json',side_effect=OSError):
+            out=alerts.collect(settings)
+        self.assertIsNone(out['host']); self.assertIsNone(out['nas'])
+        self.assertEqual(len(calls),2*alerts.SSH_ATTEMPTS)
+
+    def test_errors_logged_without_ping_capabilities(self):
+        import io, contextlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp).resolve(); root.chmod(0o700)
+            conf=config(); err=io.StringIO()
+            def sender(url,failed,codes): raise RuntimeError(url)
+            with contextlib.redirect_stderr(err):
+                alerts.run_once(conf,INSTANCE,root,collector=bundle,sender=sender,now=NOW)
+            text=err.getvalue()
+            self.assertIn('delivery failed: RuntimeError',text); self.assertIn('run failed',text)
+            self.assertNotIn('https://',text); self.assertNotIn('/ping/',text)
 
 if __name__=='__main__':unittest.main()

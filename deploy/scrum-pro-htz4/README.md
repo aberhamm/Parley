@@ -458,9 +458,17 @@ SQL query, or journal replay. Existing maintenance jobs remain independent.
 | Scrum Pro deletion journal sync | Failed/stale host export or Studio/NAS sync; missing/invalid journal or wrong instance; or a journal/status/mirror mismatch that persists for more than five minutes. |
 
 All three checks use the existing devops Telegram channel. The checker pings
-healthy or `/fail` every run; Healthchecks sends failure/recovery notifications
-on state changes. An explicit failed result is reported on the next checker
-run, normally within a minute. Stale status and persistent divergence alerts
+every run; Healthchecks sends failure/recovery notifications on state changes.
+Since 9 November 2026 a check pings `/fail` only after three failed runs in a
+row (`FAIL_STREAK`); runs one and two still send the green ping, with the
+failure codes in its body, and are recorded as `pending` with
+`consecutive_failures` in `alerts-status.json`. A passing run resets the count.
+Each SSH probe (host and NAS) is retried once before it counts as failed. An
+explicit failed result therefore pages about three minutes after it starts.
+Checker errors (failed probe attempts, failed pings, crashes) and one summary
+line per run go to `privacy-alerts.log` in the runtime folder (launchd
+stdout/stderr; the script copies it to `.1` and truncates it above 1 MiB). Ping
+URLs never appear in it. Stale status and persistent divergence alerts
 occur after five minutes plus the next poll. The journal/status files are
 published separately; each transient mismatch has its own durable grace clock.
 Those clocks are saved before any green heartbeat, so a broken state file
