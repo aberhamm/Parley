@@ -1,0 +1,423 @@
+{
+  "schema": 1,
+  "scope": "LOCAL",
+  "default_tier": "actions",
+  "reports": [
+    {
+      "id": "pageviews",
+      "event": null,
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [
+        "url"
+      ],
+      "schema_filter": null,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "workspace_created",
+      "event": "workspace_created",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "workspace_joined",
+      "event": "workspace_joined",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "invitation_accepted",
+      "event": "invitation_accepted",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "guest_link_redeemed",
+      "event": "guest_link_redeemed",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "poker_vote_saved",
+      "event": "poker_vote_saved",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "poker_reveal_requested",
+      "event": "poker_reveal_requested",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "standup_participated",
+      "event": "standup_participated",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "session_created",
+      "event": "session_created",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [
+        "kind"
+      ],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "room_opened",
+      "event": "room_opened",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [
+        "kind"
+      ],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "session_closed",
+      "event": "session_closed",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [
+        "kind"
+      ],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    },
+    {
+      "id": "creation_failed",
+      "event": "creation_failed",
+      "unit": "observations",
+      "aggregation": "count",
+      "dimensions": [
+        "flow",
+        "category"
+      ],
+      "schema_filter": 1,
+      "native_filter_status": "unverified"
+    }
+  ],
+  "flows": [
+    {
+      "id": "host_setup",
+      "steps": [
+        "/",
+        "workspace_created",
+        "session_created"
+      ],
+      "kind": null,
+      "max_gap_minutes": 60,
+      "allow_intermediate": true,
+      "unit": "collector-anonymous-context",
+      "availability": "unavailable-until-installed-proof"
+    },
+    {
+      "id": "invited_browser",
+      "steps": [
+        "/invite",
+        "invitation_accepted",
+        "room_opened"
+      ],
+      "kind": null,
+      "max_gap_minutes": 60,
+      "allow_intermediate": true,
+      "unit": "collector-anonymous-context",
+      "availability": "unavailable-until-installed-proof"
+    },
+    {
+      "id": "poker",
+      "steps": [
+        "room_opened",
+        "poker_vote_saved"
+      ],
+      "kind": "poker",
+      "max_gap_minutes": 60,
+      "allow_intermediate": true,
+      "unit": "collector-anonymous-context",
+      "availability": "unavailable-until-installed-proof"
+    },
+    {
+      "id": "standup",
+      "steps": [
+        "room_opened",
+        "standup_participated"
+      ],
+      "kind": "standup",
+      "max_gap_minutes": 60,
+      "allow_intermediate": true,
+      "unit": "collector-anonymous-context",
+      "availability": "unavailable-until-installed-proof"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "host_setup",
+      "scope": "LOCAL",
+      "pageviews": 3,
+      "events": [
+        "workspace_created",
+        "session_created",
+        "room_opened"
+      ],
+      "expected_counts": {
+        "workspace_created": 1,
+        "session_created": 1,
+        "room_opened": 1
+      }
+    },
+    {
+      "id": "invited_browser",
+      "scope": "LOCAL",
+      "pageviews": 2,
+      "events": [
+        "invitation_accepted",
+        "room_opened"
+      ],
+      "expected_counts": {
+        "invitation_accepted": 1,
+        "room_opened": 1
+      }
+    },
+    {
+      "id": "signed_link",
+      "scope": "LOCAL",
+      "pageviews": 2,
+      "events": [
+        "guest_link_redeemed",
+        "room_opened"
+      ],
+      "expected_counts": {
+        "guest_link_redeemed": 1,
+        "room_opened": 1
+      }
+    },
+    {
+      "id": "poker_changes_manual_retry",
+      "scope": "LOCAL",
+      "pageviews": 1,
+      "events": [
+        "room_opened",
+        "poker_vote_saved",
+        "poker_vote_saved",
+        "poker_reveal_requested",
+        "session_closed"
+      ],
+      "expected_counts": {
+        "room_opened": 1,
+        "poker_vote_saved": 2,
+        "poker_reveal_requested": 1,
+        "session_closed": 1
+      }
+    },
+    {
+      "id": "standup_first_save_flush",
+      "scope": "LOCAL",
+      "pageviews": 1,
+      "events": [
+        "room_opened",
+        "standup_participated",
+        "session_closed"
+      ],
+      "expected_counts": {
+        "room_opened": 1,
+        "standup_participated": 1,
+        "session_closed": 1
+      }
+    },
+    {
+      "id": "unknown_creation_then_retry",
+      "scope": "LOCAL",
+      "pageviews": 1,
+      "events": [
+        "creation_failed",
+        "workspace_created"
+      ],
+      "expected_counts": {
+        "creation_failed": 1,
+        "workspace_created": 1
+      }
+    },
+    {
+      "id": "named_default_off",
+      "scope": "LOCAL",
+      "pageviews": 1,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "dnt",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "optout_before_load",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "frame",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "unapproved_host",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "blocked_tracker",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "offline_send",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "websocket_replay",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "maintenance_new_snapshot",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "stale_admission",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "old_artifact_hash",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "old_snapshot_expired",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "rollback_all_collection_off",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "optout_after_load",
+      "scope": "LOCAL",
+      "pageviews": 1,
+      "events": [
+        "poker_vote_saved"
+      ],
+      "expected_counts": {
+        "poker_vote_saved": 1
+      }
+    },
+    {
+      "id": "old_snapshot_timely",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [
+        "poker_vote_saved"
+      ],
+      "expected_counts": {
+        "poker_vote_saved": 1
+      }
+    },
+    {
+      "id": "new_artifact_bound",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [
+        "poker_vote_saved"
+      ],
+      "expected_counts": {
+        "poker_vote_saved": 1
+      }
+    },
+    {
+      "id": "native_cache_identity_stripped",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [
+        "poker_vote_saved"
+      ],
+      "expected_counts": {
+        "poker_vote_saved": 1
+      }
+    },
+    {
+      "id": "invitation_preview_or_denied",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "guest_link_denied",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    },
+    {
+      "id": "local_validation",
+      "scope": "LOCAL",
+      "pageviews": 0,
+      "events": [],
+      "expected_counts": {}
+    }
+  ]
+}

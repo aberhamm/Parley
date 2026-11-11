@@ -1,3 +1,4 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +72,7 @@ export function InvitationPage() {
         "/api/invitations/accept",
         { token },
       );
+      trackAnalyticsEvent("invitation_accepted");
       try { sessionStorage.removeItem(pendingKey); } catch { /* Storage may be disabled. */ }
       await qc.invalidateQueries({ queryKey: ["my-orgs"] });
       await qc.invalidateQueries({ queryKey: ["my-spaces"] });

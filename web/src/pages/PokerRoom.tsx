@@ -1,3 +1,4 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { action, api, ApiError, errorText, type Envelope, type Person, type Story } from "../lib/api";
@@ -357,7 +358,10 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
     if (!current || env.revealed || ended) return;
     const prev = selected;
     setSelected(value); // Optimistic: the card lifts before the round-trip.
-    if (!(await run(() => action(env.id, "vote", { storyId: current.id, value, expectedRoundVersion: st.roundVersion })))) {
+    if (!(await run(async () => {
+      await action(env.id, "vote", { storyId: current.id, value, expectedRoundVersion: st.roundVersion });
+      trackAnalyticsEvent("poker_vote_saved");
+    }))) {
       setSelected(prev);
     }
   }
@@ -587,7 +591,11 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
           aria-label={current?.parentId ? `Reveal votes for ${current.title || current.ref}` : undefined}
           disabled={!current || (current.votedUserIds.length === 0)}
           aria-disabled={isAnswerPending || undefined}
-          onClick={() => void answerOnce(() => run(() => action(env.id, "reveal", {storyId: current?.id, expectedRoundVersion: st.roundVersion}), { retry: true }))}
+          onClick={() => void answerOnce(() => run(async () => {
+            await action(env.id, "reveal", {storyId: current?.id, expectedRoundVersion: st.roundVersion});
+            // Kept inside the retained retry callback; counts requests, not rounds.
+            trackAnalyticsEvent("poker_reveal_requested");
+          }, { retry: true }))}
         >
           Reveal
         </button>
@@ -1280,6 +1288,7 @@ export function PokerRoom({ env: liveEnv, me, status = "live", guest = false, ki
               onClick={async () => {
                 setConfirmEnd(false);
                 if (await run(() => api("DELETE", `/api/sessions/${env.id}`))) {
+                  trackAnalyticsEvent("session_closed", { kind: "poker" });
                   say("Session closed — members can still open the results");
                 }
               }}

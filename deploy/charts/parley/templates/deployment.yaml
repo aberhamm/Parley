@@ -135,6 +135,10 @@ spec:
             {{- end }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel | quote }}
+            - name: ANALYTICS_RELAY_URL
+              value: {{ .Values.analyticsRelay.url | quote }}
+            - name: ANALYTICS_RELAY_STATE_DIR
+              value: {{ .Values.analyticsRelay.stateDir | quote }}
             - name: METRICS_ENABLED
               value: {{ include "parley.isTrue" .Values.metrics.enabled | quote }}
             - name: SESSION_IDLE_TTL

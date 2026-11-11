@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/lets-parley/parley/internal/analyticsrelay"
 	"github.com/lets-parley/parley/internal/api/custody"
 	"github.com/lets-parley/parley/internal/auth"
 	"github.com/lets-parley/parley/internal/httprequest"
@@ -113,6 +114,9 @@ type app struct {
 }
 
 type Options struct {
+	AnalyticsRelay          *analyticsrelay.Config
+	AnalyticsArtifactSHA256 string
+
 	InviteOnly bool
 
 	SecureCookies bool
@@ -466,6 +470,7 @@ func Router(pool *pgxpool.Pool, opts Options) *Handler {
 	a.mountEmbedDocuments(root, spa)
 	a.mountPluginFrame(root)
 	r := root.With(securityHeaders)
+	mountAnalytics(r, opts)
 
 	// chi answers a known path with an unknown method from its own
 	// method-not-allowed handler, which is not in the route tree and so runs

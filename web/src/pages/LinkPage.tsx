@@ -1,3 +1,4 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError, errorText } from "../lib/api";
@@ -46,6 +47,7 @@ export function LinkPage() {
         token,
         name: name.trim(),
       });
+      trackAnalyticsEvent("guest_link_redeemed");
       rememberLinkGuest({ sessionId: r.sessionId, me: r.me, expiresAt: r.expiresAt });
       navigate(`/session/${r.sessionId}`);
     } catch (err) {

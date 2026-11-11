@@ -8,6 +8,9 @@ import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/700.css'
 import './tokens.css'
 import App from './App.tsx'
+import { initializeAnalytics } from './lib/analytics'
+
+initializeAnalytics()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

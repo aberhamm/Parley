@@ -1,3 +1,4 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import {
   lazy,
   Suspense,
@@ -13,6 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  ApiError,
   errorText,
   type Membership,
   type OrgMembership,
@@ -426,12 +428,14 @@ export function Landing() {
       try {
         sp = await api<SpaceView>("POST", "/api/spaces", org ? { name: spaceName, org } : { name: spaceName });
       } catch (e) {
+        trackAnalyticsEvent("creation_failed", { flow: "workspace_create", category: e instanceof ApiError ? "rejected" : "outcome_unknown" });
         creating.current = false;
         setBusy(false);
         setCanRetry(true);
         setError(errorText(e));
         return;
       }
+      trackAnalyticsEvent("workspace_created");
       // Past this line the space exists on the server. Anything that goes
       // wrong from here is a problem with showing it, not with making it, so
       // the latch stays shut: a second press must never buy a second space.

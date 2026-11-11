@@ -1,3 +1,4 @@
+import { trackAnalyticsEvent } from "../lib/analytics";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { action, api, ApiError, errorText, type Envelope, type Me, type SpaceView } from "../lib/api";
@@ -79,6 +80,9 @@ function useOwnEntryDraft(env: Envelope, meId: string) {
   const server = st.entries.find((e) => e.userId === meId);
   const [draft, setDraft] = useState({ yesterday: "", today: "", blockers: "" });
   const seeded = useRef(false);
+  // This room's local writes only; seed entries/frames and later autosaves
+  // are not additional participation. A real remount may observe it again.
+  const participated = useRef(false);
   const timer = useRef<number | undefined>(undefined);
   // What has been typed but not yet sent. Kept in a ref rather than state so
   // flush() can post the very last keystroke without waiting for a re-render.
@@ -108,6 +112,10 @@ function useOwnEntryDraft(env: Envelope, meId: string) {
     const done = chain.current.catch(() => {}).then(async () => {
       try {
         await action(env.id, "standup", next);
+        if (!participated.current) {
+          participated.current = true;
+          trackAnalyticsEvent("standup_participated");
+        }
         setSaveState("saved");
         setFailed(false);
       } catch (e) {
@@ -398,6 +406,7 @@ export function StandupRoom({
         throw new Error("Your last changes could not be saved, so the session is still open. Try again.");
       }
       await api("DELETE", `/api/sessions/${env.id}`);
+      trackAnalyticsEvent("session_closed", { kind: "standup" });
     } finally {
       endingRef.current = false;
       setEnding(false);

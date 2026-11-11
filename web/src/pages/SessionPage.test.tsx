@@ -1,7 +1,9 @@
+import { StrictMode } from "react";
+import * as analytics from "../lib/analytics";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import { renderApp } from "../test/render";
 import { api, ApiError, action } from "../lib/api";
 import { createPluginBridge } from "../lib/pluginBridge";
@@ -124,6 +126,8 @@ let mockData: Envelope | null = null;
 // genuine miss, which leaves data undefined.
 let mockSessionError = false;
 let mockSessionHasData = true;
+let mockSessionLoading = false;
+let mockSessionStatus: "stale" | "removed" | "kicked" = "stale";
 
 vi.mock("../lib/useSession", () => ({
   useSession: vi.fn(() => ({
@@ -137,9 +141,9 @@ vi.mock("../lib/useSession", () => ({
           state: mockState,
           orgSlug: mockOrgSlug,
         } as Envelope)),
-    isLoading: false,
+    isLoading: mockSessionLoading,
     isError: mockSessionError,
-    status: "stale",
+    status: mockSessionStatus,
     refetch: () => {},
   })),
 }));
@@ -153,6 +157,8 @@ beforeEach(() => {
   mockData = null;
   mockSessionError = false;
   mockSessionHasData = true;
+  mockSessionLoading = false;
+  mockSessionStatus = "stale";
   apiMeResponse = me;
   localStorage.clear();
   sessionStorage.clear();
@@ -836,3 +842,123 @@ describe("SessionPage transient session refetch failure", () => {
     expect(await screen.findByText(/no access to this session/i)).toBeTruthy();
   });
 });
+
+
+describe("SessionPage analytics", () => {
+  it("observes authorized room data once across StrictMode, frames and reconnects; remounts may duplicate", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    const view = renderApp(<StrictMode><SessionPage /></StrictMode>);
+    await waitFor(() => expect(track).toHaveBeenCalledWith("room_opened", { kind: "standup" }));
+    mockSessionError = true;
+    mockData = { ...envelope, version: 2 };
+    view.rerender(<StrictMode><SessionPage /></StrictMode>);
+    expect(track.mock.calls).toEqual([["room_opened", { kind: "standup" }]]);
+    view.unmount();
+    renderApp(<SessionPage />);
+    await waitFor(() => expect(track).toHaveBeenCalledTimes(2));
+    track.mockRestore();
+  });
+
+  it("does not observe forbidden data or identity recovery until authorized", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    mockSessionHasData = false;
+    const view = renderApp(<SessionPage />);
+    await screen.findByText(/no access to this session/i);
+    expect(track).not.toHaveBeenCalled();
+    mockSessionHasData = true;
+    view.queryClient.setQueryData(["me"], null);
+    view.rerender(<SessionPage />);
+    expect(track).not.toHaveBeenCalled();
+    view.queryClient.setQueryData(["me"], me);
+    view.rerender(<SessionPage />);
+    await waitFor(() => expect(track).toHaveBeenCalledTimes(1));
+    track.mockRestore();
+  });
+
+  it("observes an authorized redacted guest room without sending guest details", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    apiMeResponse = { ...me, linkSessionId: "sess-1", linkExpiresAt: "2099-01-01" };
+    mockData = redactForGuest(envelope, me.id);
+    renderApp(<SessionPage />, { route: "/session/sess-1", path: "/session/:id" });
+    await screen.findByTestId("link-guest-banner");
+    expect(track.mock.calls).toEqual([["room_opened", { kind: "standup" }]]);
+    track.mockRestore();
+  });
+
+  it("does not observe plugin or unknown rooms", async () => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    mockKind = "unknown";
+    renderApp(<SessionPage />);
+    await screen.findByText(/doesn't know how to open/);
+    expect(track).not.toHaveBeenCalled();
+    track.mockRestore();
+  });
+});
+
+
+// A real router transition retains SessionPage itself. This exercises the
+// one-room observation/draft scope rather than manufacturing a full remount.
+function RoomTransitionFixture() {
+  const navigate = useNavigate();
+  return <>
+    <button onClick={() => navigate("/session/sess-1")}>First fixture room</button>
+    <button onClick={() => navigate("/session/sess-2")}>Second fixture room</button>
+    <SessionPage />
+  </>;
+}
+
+it("analytics resets observations and first-save state on a same-component room-id transition", async () => {
+  const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+  const gathering = (id: string): Envelope => ({ ...envelope, id, phase: "gathering", state: {
+    ...envelope.state,
+    currentSpeakerId: null,
+    entries: [{ userId: me.id, yesterday: "", today: "", blockers: "", position: 1, skipped: false }],
+  } } as unknown as Envelope);
+  mockData = gathering("sess-1");
+  const view = renderApp(<RoomTransitionFixture />, { route: "/session/sess-1", path: "/session/:id" });
+  try {
+    await screen.findByLabelText("today");
+    expect(track.mock.calls).toEqual([["room_opened", { kind: "standup" }]]);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "First room draft" } });
+    await waitFor(() => expect(track.mock.calls).toEqual([["room_opened", { kind: "standup" }], ["standup_participated"]]));
+    mockData = gathering("sess-2");
+    fireEvent.click(screen.getByRole("button", { name: "Second fixture room" }));
+    await screen.findByLabelText("today");
+    expect((screen.getByLabelText("today") as HTMLTextAreaElement).value).toBe("");
+    expect(track.mock.calls).toEqual([["room_opened", { kind: "standup" }], ["standup_participated"], ["room_opened", { kind: "standup" }]]);
+    fireEvent.change(screen.getByLabelText("today"), { target: { value: "Second room draft" } });
+    await waitFor(() => expect(track.mock.calls.filter(([name]) => name === "standup_participated")).toHaveLength(2));
+    // The same page moves through an unreadable room, then back to the prior view.
+    // It must forget the prior active-room guard while the new view has no data.
+    mockData = null;
+    mockSessionHasData = false;
+    fireEvent.click(screen.getByRole("button", { name: "First fixture room" }));
+    expect(screen.getByText(/no access to this session/i)).toBeTruthy();
+    mockData = gathering("sess-2");
+    mockSessionHasData = true;
+    fireEvent.click(screen.getByRole("button", { name: "Second fixture room" }));
+    await screen.findByLabelText("today");
+    expect(track.mock.calls.filter(([name]) => name === "room_opened")).toHaveLength(3);
+    expect(track.mock.calls.filter(([name]) => name === "standup_participated")).toHaveLength(2);
+  } finally {
+    view.unmount();
+    track.mockRestore();
+  }
+});
+
+it.each(["loading", "missing-org", "removed", "kicked", "unavailable", "plugin"] as const)(
+  "analytics refuses a %s room observation",
+  async (reason) => {
+    const track = vi.spyOn(analytics, "trackAnalyticsEvent").mockImplementation(() => {});
+    if (reason === "loading") mockSessionLoading = true;
+    if (reason === "missing-org") mockOrgSlug = "";
+    if (reason === "removed" || reason === "kicked") mockSessionStatus = reason;
+    if (reason === "unavailable") mockData = { ...envelope, kindUnavailable: true };
+    if (reason === "plugin") mockData = { ...envelope, kind: "retro", plugin: { name: "retro", version: "1.0.0", grants: ["session:read"] } } as unknown as Envelope;
+    const view = renderApp(<SessionPage />);
+    await waitFor(() => expect(view.queryClient.getQueryState(["me"])?.status).toBe("success"));
+    expect(track).not.toHaveBeenCalled();
+    view.unmount();
+    track.mockRestore();
+  },
+);

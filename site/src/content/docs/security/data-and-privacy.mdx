@@ -6,7 +6,7 @@ description: Every field of personal data Parley stores, and what it deliberatel
 import VerifiedStamp from "../../../components/VerifiedStamp.astro";
 import Capability from "../../../components/Capability.astro";
 
-<VerifiedStamp version="scrum-pro-873780b" source={["internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html"]} />
+<VerifiedStamp version="scrum-pro-analytics-reports-local-v1" source={["docs/analytics/reports.md", "docs/analytics/report-recipes.json", "docs/verification/analytics-acceptance.md", "scripts/check-analytics-report-preparation.py","scripts/check-analytics-readiness.py", "docs/analytics/collector-readiness.md","web/src/pages/Landing.tsx", "web/src/pages/SpacePage.tsx", "web/src/pages/InvitationPage.tsx", "web/src/pages/LinkPage.tsx", "web/src/lib/analytics.ts", "web/src/lib/analyticsContract.ts", "web/src/components/AnalyticsChoice.tsx", "internal/db/migrations/0061_privacy_retention.sql", "internal/db/migrations/0062_profile_erasure.sql", "internal/db/migrations/0063_guest_profile_erasure.sql", "internal/store/privacy.go", "internal/store/profile_erasure.go", "internal/api/privacy.go", "internal/api/profile_erasure.go", "scripts/privacy-maintenance.py", "deploy/scrum-pro-htz4/privacy-alerts.py", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-protection.plist", "deploy/scrum-pro-htz4/privacy-host.py", "deploy/scrum-pro-htz4/privacy-studio.py", "deploy/scrum-pro-htz4/privacy-nas.py", "deploy/scrum-pro-htz4/rsyslog-scrum-pro.conf", "deploy/scrum-pro-htz4/logrotate-scrum-pro.conf", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.timer", "deploy/scrum-pro-htz4/systemd/scrum-pro-logging.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-privacy-maintenance.service", "deploy/scrum-pro-htz4/systemd/scrum-pro-stack.service", "deploy/scrum-pro-htz4/launchd/com.matthew.scrum-pro-privacy.plist", "web/index.html", "web/src/pages/SessionPage.tsx", "web/src/pages/PokerRoom.tsx", "web/src/pages/StandupRoom.tsx", "internal/analyticsrelay/relay.go", "internal/analyticsrelay/admission.go", "internal/analyticsrelay/policy.go", "cmd/parley/analytics_identity.go", "web/src/lib/analytics-policy.json"]} />
 
 Parley stores very little about people, mostly because it never asks. In its
 default mode there is no account, no email address and no password.
@@ -167,3 +167,101 @@ The delivery path depends on the operator's Healthchecks and Telegram services.
 Pause the matching checks before intentionally retiring their sender. Runtime
 setup, status locations and recovery instructions are in
 `deploy/scrum-pro-htz4/README.md` and `docs/privacy-operations.md`.
+
+## Optional Scrum Pro usage analytics
+
+This fork configures coarse page counts only on `scrum.matthew.systems` through
+its same-origin analytics gateway. Other deployments and preview hosts do not
+automatically use this site. The bundled adapter projects addresses to fixed
+categories such as `/workspace` and `/session`; it sends a fixed application
+title and empty referrer. Raw organization, workspace and session addresses,
+query strings, fragments, names, votes and meeting text are excluded. The
+browser projection is data minimization for trusted app calls, not a defense
+against someone forging requests to a public collector.
+
+Open **Usage privacy** on any eligible page, including invitation, guest and
+presentation pages, to change **Allow usage analytics in this browser**.
+Opting out suppresses subsequent sends, and Do Not Track also blocks them.
+The preference uses `umami.disabled` in this browser's local storage. If storage
+cannot be read, analytics stays blocked until an explicit choice in the open
+page; if a choice cannot be saved, the control says so and it applies only to
+that document. Enabling may require a reload. The choice does not delete past
+analytics or apply to another browser.
+
+Delivery is optional and best effort: unavailable scripts, blocked/offline
+requests and ambiguous failures are dropped, without a persistent queue or
+automatic replay. Counts describe observed browser actions, not unique people,
+meetings or authoritative business records. Expanded named-event collection is
+disabled by default pending collector custody and release validation.
+
+When enabled after those gates, explicit successful workspace creation, join,
+invitation acceptance, guest-link redemption and session creation callbacks can
+send finite action events. Session kind is only `poker`, `standup` or `other`.
+Only workspace/session creation refusals and unknown transport outcomes have
+error events, with fixed flow/category values and no exception text. Preview,
+rendering, existing membership, sign-in prompts and local validation emit no
+success event. A repeated acknowledged action may count again; a lost success
+response may hide a real creation even when a later retry succeeds. These are
+separate observations, not paired attempts or an exact conversion rate.
+Navigation failure after acknowledged creation does not change its event.
+
+When separately enabled, ceremony signals count acknowledged local poker votes,
+explicit manual reveal requests, the first accepted standup save per mounted
+room, and explicit successful closes. Standup close first waits for the last
+save; failed saves or denied closes do not count as close success. Room-open
+observations require readable built-in room data and a resolved identity.
+Receiving live updates, rendering an ended room, automatic reveals and
+scheduled actions do not count. No card value, text, participant detail or room
+identity is sent. Reloads, remounts, tabs, retries, other devices and blocked
+tracking prevent exact people, round, meeting or completion-rate measurements.
+Local deduplication lasts only for the mounted room and stores no identifier.
+Plugin/unknown rooms and plugin frames remain unobserved.
+
+The operator has accepted a 90-day policy for raw analytics; this is separate
+from application erasure and app backup retention. The adapter does not enforce
+collector expiry or remove historical analytics. Collector storage, access,
+backup exclusion and restore reconciliation require separate operator evidence
+before expanded collection is enabled. No anonymity or complete deletion
+promise follows merely from the client projection. See the repository's
+`docs/analytics/measurement-contract.md` for exact definitions and limitations.
+
+### Private relay admission
+
+The optional Go relay accepts only fixed page categories and the reviewed
+schema-1 event catalog; its canonical policy is shared with browser projection.
+Native collector APIs are private. No app cookie, account, address, referrer,
+Authorization or native analytics cache is forwarded. Analytics cannot provide
+reliable per-person identity or individual session flows through this relay.
+
+Both transport endpoints require short-lived operator proof bound to the
+running executable's SHA256 and installed collector/tracker/policy. Invalid,
+stale or non-ready proof stops collection without interrupting the application.
+Operator maintenance atomically blocks new snapshots, waits six seconds for
+older operations, then proves collector exit and database writer drain before
+purging. A blocked gateway alone does not prove deletion or backup custody.
+Raw analytics retention remains the separately accepted 90 days; deployment,
+expiry and historical-copy acceptance must pass before collection is enabled.
+
+
+The app also includes an offline rollout-readiness receipt checker. It checks
+explicit site/policy/tracker/collector and installed app image/executable
+bindings, freshness and hash-bound private evidence files. Its24-hour rollout
+receipt is separate from the relay's maximum60-second runtime admission lease.
+A schema/hash pass does not attest proof contents or authorize collection.
+Actual expiry, all-copy/restore reconciliation, private access and installed
+staging evidence require the accountable operator and independent review;
+those operational gates remain blocked in this local implementation phase.
+Synthetic ready fixtures are test-only. Named events and runtime admission
+remain off until the separate readiness and release gates pass.
+
+
+LOCAL report recipes count separate browser observations, with explicit schema,
+site and complete Europe/Berlin calendar windows. Repeated actions and missing
+coverage prevent exact people, workspace, meeting or conversion totals. Flow
+recipes remain unavailable without independently proved identity separation,
+ordering, consecutive60-minute windows and supported native filtering.
+The local acceptance-preparation checker always leaves rollout blocked; matching
+artifact/proof hashes or synthetic totals do not establish real collector
+readback. Actual final source/image/executable/gateway, custody and independent
+privacy acceptance remain required. Rollback disables all collection and
+restores only the approved app/config; it does not erase historical analytics.

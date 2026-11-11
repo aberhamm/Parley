@@ -1,3 +1,4 @@
+import { captureAnalytics } from "../test/analytics";
 import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -6,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../lib/ui";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "../test/render";
-import { api, type Me } from "../lib/api";
+import { api, ApiError, type Me } from "../lib/api";
 import { Landing } from "./Landing";
 import { expectNoViolations } from "../test/axe";
 
@@ -1396,4 +1397,45 @@ it("offers creation in the invited host organization only", async () => {
   await screen.findByRole("button", {name:/create workspace/i});
   const select = screen.getByLabelText("Org") as HTMLSelectElement;
   expect(Array.from(select.options).map(o=>o.value)).toEqual(["host-org"]);
+});
+
+
+describe("Landing observed creation outcomes", () => {
+  async function create() {
+    await userEvent.type(await screen.findByPlaceholderText(/Platform Team/), "PRIVATE WORKSPACE");
+    await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
+  }
+  it("observes acknowledged creation once even when navigation fails", async () => {
+    const captured = captureAnalytics("/");
+    navigate.mockImplementationOnce(() => { throw new Error("navigation failed"); });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { rerender } = renderApp(<Landing />);
+      expect(captured.events()).toEqual([]);
+      await create();
+      await screen.findByText(/couldn't open it/i);
+      rerender(<Landing />);
+      expect(captured.events()).toEqual([{ name: "workspace_created", data: { schema: 1 } }]);
+      expect(captured.payloads[0]).toEqual({ website: "synthetic-site", hostname: "localhost", url: "/", title: "Scrum Pro", referrer: "", name: "workspace_created", data: { schema: 1 } });
+    } finally { log.mockRestore(); }
+  });
+  it.each([new ApiError(403, "PRIVATE REFUSAL"), new TypeError("PRIVATE LOST RESPONSE")])("classifies only the write failure and observes a successful retry (%s)", async (failure) => {
+    const captured = captureAnalytics("/");
+    const original = vi.mocked(api).getMockImplementation()!;
+    let fail = true;
+    vi.mocked(api).mockImplementation(async (method, path, body) => {
+      if (method === "POST" && path === "/api/spaces" && fail) throw failure;
+      return original(method, path, body);
+    });
+    try {
+      renderApp(<Landing />);
+      await create();
+      await screen.findByRole("alert");
+      expect(captured.events()).toEqual([{ name: "creation_failed", data: { schema: 1, flow: "workspace_create", category: failure instanceof ApiError ? "rejected" : "outcome_unknown" } }]);
+      fail = false;
+      await userEvent.click(screen.getByRole("button", { name: /create workspace/i }));
+      await waitFor(() => expect(captured.events()).toHaveLength(2));
+      expect(captured.events()[1]).toEqual({ name: "workspace_created", data: { schema: 1 } });
+    } finally { vi.mocked(api).mockImplementation(original); }
+  });
 });

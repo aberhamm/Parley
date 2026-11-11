@@ -7,6 +7,8 @@ RUN npm ci
 COPY web/index.html web/tsconfig.json web/tsconfig.app.json web/tsconfig.node.json web/tsconfig.vitest.json web/vite.config.ts ./
 COPY web/public ./public
 COPY web/src ./src
+COPY web/scripts ./scripts
+COPY internal/analyticsrelay/policy.generated.json /src/internal/analyticsrelay/policy.generated.json
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS gobuild
