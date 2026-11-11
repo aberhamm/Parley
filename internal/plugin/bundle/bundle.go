@@ -13,9 +13,11 @@ import (
 	"compress/gzip"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"sort"
 	"strings"
@@ -142,18 +144,30 @@ func Pack(files map[string][]byte, manifest []byte, key ed25519.PrivateKey) ([]b
 	if tarBuf.Len() > MaxTotal {
 		return nil, ErrTooLarge
 	}
-	var out bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&out, gzip.NoCompression)
-	if err != nil {
-		return nil, fmt.Errorf("packing bundle: %w", err)
+	return storedGzip(tarBuf.Bytes()), nil
+}
+
+// storedGzip encodes the fixed framing in sdk/abi/bundle-v1.md. In particular,
+// the empty final block must remain stored: Go 1.27's gzip.NoCompression
+// instead uses a fixed-Huffman final block, changing every bundle's bytes.
+// Pack has already bounded body to MaxTotal.
+func storedGzip(body []byte) []byte {
+	const blockSize = 65535
+	blocks := (len(body) + blockSize - 1) / blockSize
+	out := make([]byte, 0, 10+len(body)+5*(blocks+1)+8)
+	out = append(out, 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff)
+	for remaining := body; len(remaining) > 0; {
+		n := min(len(remaining), blockSize)
+		out = append(out, 0) // non-final stored block, padded to a byte
+		out = binary.LittleEndian.AppendUint16(out, uint16(n))
+		out = binary.LittleEndian.AppendUint16(out, ^uint16(n))
+		out = append(out, remaining[:n]...)
+		remaining = remaining[n:]
 	}
-	if _, err := gz.Write(tarBuf.Bytes()); err != nil {
-		return nil, fmt.Errorf("packing bundle: %w", err)
-	}
-	if err := gz.Close(); err != nil {
-		return nil, fmt.Errorf("packing bundle: %w", err)
-	}
-	return out.Bytes(), nil
+	out = append(out, 1, 0, 0, 0xff, 0xff) // empty final stored block
+	out = binary.LittleEndian.AppendUint32(out, crc32.ChecksumIEEE(body))
+	out = binary.LittleEndian.AppendUint32(out, uint32(len(body)))
+	return out
 }
 
 // capped refuses to yield more than n bytes of the decompressed stream, so a
