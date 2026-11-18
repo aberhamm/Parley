@@ -510,3 +510,28 @@ it does not perform a full restore every minute or prove physical erasure.
 Retain scheduled restore drills and the independent deletion-journal recovery
 procedure. The existing application source/image and schema are unchanged by
 this monitoring rollout.
+
+## Deploys come from homelab deploy-poll (plan 248)
+
+The image is built and activated by the homelab deploy-poll, not by hand. The
+poller builds a CI-green commit of `main`, ships the image to this host, and the
+receiver here swaps it in. Plan: `docs/plans/248-scrum-pro-deploy-poll.md` in the
+homelab repo.
+
+- `compose.yaml` takes the app image from `SCRUM_PRO_IMAGE` (required). The
+  receiver writes it to `image.env` next to `.env`; `manage.sh` passes both
+  `--env-file .env --env-file image.env`. Without `image.env`, compose refuses
+  to start.
+- Migrations: a file that has run on the live database never changes (name or
+  content). On an upstream sync, each incoming migration is renumbered above the
+  fork's highest number, name suffix unchanged, because the migrator skips any
+  file numbered at or below the live maximum.
+- `MIGRATIONS.lock` lists every migration as `file<TAB>sha256`; the person adding
+  a migration appends a line. `MIGRATION-RENUMBERS.tsv` records each renamed
+  upstream file as `upstream_file<TAB>fork_file<TAB>sync_commit<TAB>sha256_of_upstream_content`
+  (hash taken at sync time).
+- `internal/db/migrate_renumber_test.go` (part of `ci`) fails on: a duplicate
+  number, a missing or edited locked file, an unlocked file numbered at or below
+  the lock's highest, a TSV hash mismatch, or an upstream name listed twice.
+- If upstream edits an already-renumbered migration, put the change in a new
+  fork migration, never in the applied file.
