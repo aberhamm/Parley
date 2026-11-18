@@ -17,6 +17,8 @@ import (
 // upstream migrations are renumbered above the fork's highest number, and every
 // file is recorded in deploy/scrum-pro-htz4/MIGRATIONS.lock.
 
+const tsvHeader = "upstream_file\tfork_file\tsync_commit\tsha256_of_upstream_content"
+
 const deployDir = "../../deploy/scrum-pro-htz4"
 
 func sha(b []byte) string {
@@ -109,7 +111,9 @@ func checkRenumber(files map[string][]byte, lockText, tsvText string) []string {
 	// The first row is the header.
 	tsvAll, p := tsvRows(tsvText, 4)
 	problems = append(problems, p...)
-	if len(tsvAll) > 0 {
+	if len(tsvAll) == 0 || strings.Join(tsvAll[0], "\t") != tsvHeader {
+		problems = append(problems, "TSV first row must be the header: "+strings.ReplaceAll(tsvHeader, "\t", "<TAB>"))
+	} else {
 		seen := map[string]bool{}
 		for _, r := range tsvAll[1:] {
 			if seen[r[0]] {
@@ -209,4 +213,11 @@ func TestRenumberNegativeTSVHashMismatch(t *testing.T) {
 	// The same upstream name twice is also rejected.
 	good := "0060_upstream_thing.sql\t0063_guest_profile_erasure.sql\tdeadbeef\t" + sha(files["0063_guest_profile_erasure.sql"]) + "\n"
 	wantProblem(t, checkRenumber(files, lock, tsv+good+good), "appears twice")
+}
+
+func TestRenumberNegativeMissingTSVHeader(t *testing.T) {
+	files, lock, _ := readInputs(t)
+	wantProblem(t, checkRenumber(files, lock, ""), "must be the header")
+	row := "0060_x.sql\t0063_guest_profile_erasure.sql\tabc\t" + sha(files["0063_guest_profile_erasure.sql"]) + "\n"
+	wantProblem(t, checkRenumber(files, lock, row), "must be the header")
 }

@@ -513,15 +513,16 @@ this monitoring rollout.
 
 ## Deploys come from homelab deploy-poll (plan 248)
 
-The image is built and activated by the homelab deploy-poll, not by hand. The
-poller builds a CI-green commit of `main`, ships the image to this host, and the
-receiver here swaps it in. Plan: `docs/plans/248-scrum-pro-deploy-poll.md` in the
+Once plan 248 Phase 4 is live, the image is built and activated by the homelab
+deploy-poll, not by hand: the poller builds a CI-green commit of `main`, ships
+the image to this host, and the receiver here swaps it in. Until then the stack
+is hand-deployed. Plan: `docs/plans/248-scrum-pro-deploy-poll.md` in the
 homelab repo.
 
 - `compose.yaml` takes the app image from `SCRUM_PRO_IMAGE` (required). The
   receiver writes it to `image.env` next to `.env`; `manage.sh` passes both
-  `--env-file .env --env-file image.env`. Without `image.env`, compose refuses
-  to start.
+  `--env-file .env --env-file image.env`. Without `image.env`, every compose
+  command refuses, including `stop` and the boot unit, not just `up`.
 - Migrations: a file that has run on the live database never changes (name or
   content). On an upstream sync, each incoming migration is renumbered above the
   fork's highest number, name suffix unchanged, because the migrator skips any
